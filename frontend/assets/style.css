@@ -1,0 +1,48 @@
+:root {
+  --color-primary: #0B2545;
+  --color-primary-dark: #061A33;
+  --color-accent: #F5A623;
+  --color-accent-dark: #D6890A;
+  --color-bg: #FFFFFF;
+  --color-bg-alt: #F4F6F8;
+  --color-text: #1A1D23;
+  --color-text-muted: #5B6470;
+  --color-border: #E1E4E8;
+}
+
+body {
+  background: var(--color-bg-alt);
+  color: var(--color-text);
+}
+
+.app-container {
+  padding: 2rem 1rem;
+}
+
+.app-title {
+  color: var(--color-primary);
+}
+
+.upload-box {
+  border: 2px dashed var(--color-primary);
+  background: var(--color-bg);
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.upload-box:hover {
+  border-color: var(--color-accent);
+}
+
+.card {
+  margin-bottom: 1.25rem;
+}
+
+button, .btn {
+  border-radius: 0.35rem;
+}
+
+.dcc-textarea {
+  font-family: inherit;
+}
