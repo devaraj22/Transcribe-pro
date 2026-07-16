@@ -1,6 +1,6 @@
-# VoiceScribe AI
+# Transcribe Pro
 
-VoiceScribe AI is a merged transcription application with two front-end entry points into the same processing core:
+Transcribe Pro is a merged transcription application with two front-end entry points into the same processing core:
 
 - **Quick Capture Mode**: Rapid short-note transcription, cleanup, WhatsApp sharing, and `.txt` download.
 - **Meeting Mode**: Long-form audio/video processing, speaker diarization, AI-generated summaries, action items, PDF report generation, and retrieval-augmented Q&A.
