@@ -25,6 +25,8 @@ pyannote.audio==3.3.2           # Speaker diarization (separating Speaker 1 vs S
 # 📚 RAG, Vector Search & LLM
 # ==========================================
 faiss-cpu==1.9.0                # Local vector database for chunked Q&A search
+sentence-transformers==2.3.1    # Embedding model loader for local RAG
+huggingface-hub==0.36.2         # Compatibility for sentence-transformers and transformers
 ollama==0.4.4                   # Python client to communicate with your local Qwen3:8B model
 numpy==1.26.4                   # Math operations for embedding vectors
 

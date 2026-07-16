@@ -1,0 +1,202 @@
+:root {
+  /* Ampere Pro Theme Palette */
+  --bg-main: #f8fafc;       /* Light off-white for the main background */
+  --bg-surface: #ffffff;    /* Pure white for panels, sidebars, and cards */
+  --text-main: #1e293b;     /* Deep charcoal for primary reading text */
+  --text-muted: #64748b;    /* Slate gray for secondary text */
+  --accent: #0d6efd;        /* Professional Corporate Blue */
+  --accent-yellow: #ffb300; /* Ampere Pro Golden/Yellow */
+  --accent-hover: #0b5ed7;  /* Darker blue for button hovers */
+  --accent-light: #e7f1ff;  /* Very soft blue for active menu highlights */
+  --border-color: #e2e8f0;  /* Light crisp borders */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 16px;
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+/* Logo Box Styling */
+.logo-box {
+  background-color: var(--accent-yellow); /* Golden Yellow Box */
+  color: var(--accent);                   /* Deep Blue Icon */
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(255, 179, 0, 0.4); /* Subtle yellow glow */
+}
+
+.logo-text h1 {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--accent); /* Deep Blue Main Title */
+  letter-spacing: -0.5px;
+}
+
+.logo-text p {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+/* Navigation */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+}
+
+.nav-btn.active {
+  background-color: var(--accent-light);
+  color: var(--accent);
+  border-left: 4px solid var(--accent); /* Corporate left-border highlight */
+  border-radius: 4px 8px 8px 4px;
+}
+
+/* Sidebar Footer */
+.sidebar-footer {
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.meta-val {
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #10b981;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.4);
+}
+
+/* Main Content Workspace */
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-main);
+}
+
+.top-header {
+  height: 64px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  background-color: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.breadcrumb {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.breadcrumb-label {
+  color: var(--text-muted);
+  margin-right: 8px;
+}
+
+.breadcrumb-current {
+  color: var(--accent);
+}
+
+.engine-tag {
+  font-size: 12px;
+  color: var(--bg-surface);
+  background: var(--accent);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.workspace-content {
+  padding: 32px;
+  flex: 1;
+  overflow-y: auto;
+}
