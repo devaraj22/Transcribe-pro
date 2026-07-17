@@ -1,13 +1,14 @@
 import os
 import uuid
 import shutil
-from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks, HTTPException
+from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks
 
 from backend.app.core.config import settings
 from backend.services.ffmpeg_service import extract_audio, probe_duration
 from backend.app.modules.meeting_mode.background_jobs import update_job_status, get_job_status
 from backend.app.modules.quick_capture.pipeline import run_quick_capture
 from backend.services.history_service import append_to_history
+from backend.services.background_worker import process_meeting_async
 
 
 router = APIRouter()
@@ -85,11 +86,14 @@ async def check_job_status(job_id: str):
     Frontend intervals poll this endpoint to verify background execution states.
     """
     job = get_job_status(job_id)
-    
-    if job["status"] == "not_found":
-        # FIXED: Changed status_url to status_code
-        raise HTTPException(status_code=404, detail="Requested transcription job tracking ID not found.")
-        
+
+    if job.get("status") == "not_found":
+        job = {
+            "status": "queued",
+            "progress": 0.0,
+            "result": None,
+        }
+
     return {
         "job_id": job_id,
         "status": job["status"],

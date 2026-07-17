@@ -14,12 +14,13 @@ python-dotenv==1.0.1            # Loads .env files securely
 ffmpeg-python==0.2.0            # Extracts audio tracks from video files
 
 # ==========================================
-# 🧠 AI Engines (Whisper & Pyannote)
+# 🧠 AI Engines (WhisperX)
 # ==========================================
-faster-whisper==1.0.3           # Core local speech-to-text engine
-torch==2.5.1                    # Machine learning backend required by Whisper/Pyannote
-torchaudio==2.5.1               # Audio tensor processing
-pyannote.audio==3.3.2           # Speaker diarization (separating Speaker 1 vs Speaker 2)
+whisperx                       # WhisperX transcription, alignment, and diarization
+transformers                   # Model utilities required by WhisperX
+sentencepiece                  # Tokenizer support for WhisperX
+torch==2.5.1                   # Machine learning backend required by WhisperX
+torchaudio==2.5.1              # Audio tensor processing
 
 # ==========================================
 # 📚 RAG, Vector Search & LLM

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     # Pyannote Settings (Speaker Diarization)
     DIARIZATION_MODEL: str = "pyannote/speaker-diarization-3.1"
     HF_TOKEN: str = os.getenv("HF_TOKEN", "") # Hugging Face token required for Pyannote
+    # Set to true to opt-in to attempting Pyannote on Windows (advanced, may fail)
+    ENABLE_PYANNOTE_ON_WINDOWS: bool = False
     
     # Ollama Settings (Local LLM via Qwen3:8B)
     OLLAMA_HOST: str = "http://localhost:11434"

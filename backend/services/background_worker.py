@@ -1,6 +1,6 @@
 import os
 from backend.app.modules.meeting_mode.background_jobs import update_job_status
-from backend.services.transcription_service import run_meeting_mode
+from backend.app.modules.meeting_mode.pipeline import run_meeting_mode
 from backend.services.faiss_service import create_vector_index
 from backend.services.history_service import append_to_history
 
@@ -15,7 +15,7 @@ async def process_meeting_async(job_id: str, audio_path: str, language_mode: str
         update_job_status(job_id, status="processing", progress=10.0)
         
         # 2. Run the heavy AI pipeline (Diarization + Transcription)
-        result = run_meeting_mode(audio_path, language_mode)
+        result = run_meeting_mode(job_id, audio_path, language_mode)
         
         # 3. Build local vector index for RAG chat
         print("⏳ Building local vector index for RAG chat...")

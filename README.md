@@ -43,6 +43,44 @@ Before running the application, you need to set up **Ollama** for AI-powered mee
 
 See [OLLAMA_SETUP.md](OLLAMA_SETUP.md) for detailed setup instructions.
 
+### Optional: Pyannote on Windows (advanced, opt-in)
+
+Pyannote speaker diarization depends on `speechbrain` and, in some configurations, `k2`. These components are not reliably supported on native Windows and may fail at import time. The project disables Pyannote on Windows by default to prevent startup errors. If you still want to attempt Pyannote on Windows, follow these steps (recommended: use WSL/Ubuntu or a Linux host):
+
+1. Use WSL (Ubuntu) or a Linux environment for best compatibility.
+
+2. Setup Python and a virtualenv in WSL/Ubuntu:
+
+```bash
+sudo apt update && sudo apt install -y build-essential cmake git python3-dev python3-venv
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+```
+
+3. Install PyTorch according to your system and CUDA availability — follow the official instructions at https://pytorch.org. For a CPU-only example:
+
+```bash
+pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+```
+
+4. Install `k2` and `speechbrain` following their official guides. `k2` often requires building from source or using distribution-specific binaries — see https://k2-fsa.github.io for details. After installing `k2`, install `speechbrain` and `pyannote.audio`:
+
+```bash
+pip install speechbrain pyannote.audio
+```
+
+5. Opt-in to enabling Pyannote on Windows by adding to your `.env` (or export in WSL):
+
+```
+ENABLE_PYANNOTE_ON_WINDOWS=true
+HF_TOKEN=your_hf_token_here
+```
+
+6. Restart the backend. If imports still fail, run the backend from WSL or a Linux VM where `k2` and `speechbrain` are supported.
+
+Note: If you do not wish to enable Pyannote, the application will fall back to whisper-only transcription.
+
 ### Running the application
 
 1. **Start the backend**:

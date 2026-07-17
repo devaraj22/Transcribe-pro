@@ -6,8 +6,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from backend.app.core.config import settings
 
 # Import the services to trigger model pre-loading
-from backend.services.whisper_service import get_whisper_model
-from backend.services.pyannote_service import get_diarization_pipeline
+from backend.app.core.config import settings
 
 # Import the centralized API router that exposes /api/v1 endpoints
 from backend.app.api.v1.router import api_router
@@ -23,16 +22,12 @@ async def lifespan(app: FastAPI):
     print(f" Storage directories verified at: {settings.STORAGE_DIR}")
     
     # 1. Pre-load Machine Learning Models into RAM
-    print(" Loading AI Models into memory (this may take a moment on first run)...")
-    try:
-        get_whisper_model()
-        print(f"Whisper model '{settings.WHISPER_MODEL}' loaded.")
-        
-        get_diarization_pipeline()
-        print(f" Pyannote diarization pipeline loaded.")
-    except Exception as e:
-        print(f" Warning during model initialization: {e}")
-        print("Make sure your HF_TOKEN is set in the .env file for Pyannote.")
+    print(" Loading backend services and verifying configuration...")
+    print(f" Whisper model config set to '{settings.WHISPER_MODEL}'.")
+    if settings.HF_TOKEN:
+        print(" HF_TOKEN is configured for diarization.")
+    else:
+        print(" HF_TOKEN is not configured; diarization may be unavailable.")
 
     yield # Server is now running and accepting requests
 
