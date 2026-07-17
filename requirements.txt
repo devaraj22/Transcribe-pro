@@ -19,7 +19,7 @@ ffmpeg-python==0.2.0            # Extracts audio tracks from video files
 whisperx                       # WhisperX transcription, alignment, and diarization
 transformers                   # Model utilities required by WhisperX
 sentencepiece                  # Tokenizer support for WhisperX
-torch==2.5.1                   # Machine learning backend required by WhisperX
+torch==2.12.1                   # Machine learning backend required by WhisperX
 torchaudio==2.5.1              # Audio tensor processing
 
 # ==========================================
