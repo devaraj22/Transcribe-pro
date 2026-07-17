@@ -4,7 +4,7 @@ import { FileUploader } from '../forms/FileUploader';
 import { TranscriptEditor } from '../TranscriptEditor';
 import { VectorChatWidget } from '../VectorChatWidget';
 import { ProgressBar } from '../ui/ProgressBar';
-import { ApiClient } from '../../services/apiclient';
+import { ApiClient } from '../../services/apiClient';
 import { useJobPolling } from '../../hooks/useJobPolling';
 
 export const MeetingModeView: React.FC = () => {

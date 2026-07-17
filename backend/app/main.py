@@ -5,9 +5,12 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.core.config import settings
 
+<<<<<<< HEAD
 # Import the services to trigger model pre-loading
 from backend.app.core.config import settings
 
+=======
+>>>>>>> 8b919d0 (update model)
 # Import the centralized API router that exposes /api/v1 endpoints
 from backend.app.api.v1.router import api_router
 
@@ -20,6 +23,7 @@ async def lifespan(app: FastAPI):
     """
     print(" Booting up VoiceScribe AI...")
     print(f" Storage directories verified at: {settings.STORAGE_DIR}")
+<<<<<<< HEAD
     
     # 1. Pre-load Machine Learning Models into RAM
     print(" Loading backend services and verifying configuration...")
@@ -28,6 +32,9 @@ async def lifespan(app: FastAPI):
         print(" HF_TOKEN is configured for diarization.")
     else:
         print(" HF_TOKEN is not configured; diarization may be unavailable.")
+=======
+    print(" Startup complete. Models will load on demand when a transcription request begins.")
+>>>>>>> 8b919d0 (update model)
 
     yield # Server is now running and accepting requests
 
@@ -47,16 +54,12 @@ app = FastAPI(
 #  Security & CORS Middleware
 # ==========================================
 # React/Vite typically runs on localhost:5173 during development.
-# This ensures the browser doesn't block frontend HTTP requests.
+# The regex form keeps local development ports flexible while still blocking unrelated origins.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # React / Vite dev server
-        "http://localhost:3000",  # Standard React fallback port
-        "http://127.0.0.1:5173"
-    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["*"], # Allows GET, POST, OPTIONS, etc.
+    allow_methods=["*"],  # Allows GET, POST, OPTIONS, etc.
     allow_headers=["*"],
 )
 

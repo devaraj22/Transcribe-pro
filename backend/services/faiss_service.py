@@ -1,4 +1,5 @@
 import os
+import re
 import faiss
 import numpy as np
 from sentence_transformers import SentenceTransformer
@@ -7,13 +8,13 @@ from backend.app.core.config import settings
 # Global variable to hold the embedding model in memory
 _embedding_model = None
 
+
 def get_embedding_model():
-    """Lazy loads the lightweight text embedding model."""
+    """Lazy loads the requested embedding model once per process."""
     global _embedding_model
     if _embedding_model is None:
         print("⏳ Loading SentenceTransformer for local RAG...")
-        # all-MiniLM-L6-v2 is extremely fast, accurate, and tiny (~80MB)
-        _embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        _embedding_model = SentenceTransformer("jinaai/jina-embeddings-v3")
     return _embedding_model
 
 def create_vector_index(job_id: str, transcript_text: str):
@@ -37,14 +38,20 @@ def create_vector_index(job_id: str, transcript_text: str):
     
     # Convert text chunks into a mathematical vector space
     embeddings = model.encode(chunks)
+    embeddings_array = np.asarray(embeddings, dtype='float32')
+    if embeddings_array.ndim == 1:
+        embeddings_array = embeddings_array.reshape(1, -1)
+    elif embeddings_array.ndim == 0:
+        embeddings_array = embeddings_array.reshape(1, 1)
+    embeddings_array = np.atleast_2d(embeddings_array)
     
     # Initialize Meta's FAISS index for high-speed similarity search
-    dimension = embeddings.shape[1]
+    dimension = embeddings_array.shape[1]
     index = faiss.IndexFlatL2(dimension)
-    index.add(np.array(embeddings).astype('float32'))
+    index.add(embeddings_array)
     
-    # Save the index and the raw chunks to your local vector_store directory
-    job_dir = os.path.join("vector_store", job_id)
+    # Save the index and the raw chunks to the configured vector_store directory
+    job_dir = os.path.join(settings.VECTOR_DIR, job_id)
     os.makedirs(job_dir, exist_ok=True)
     
     faiss.write_index(index, os.path.join(job_dir, "index.faiss"))
@@ -57,11 +64,33 @@ def create_vector_index(job_id: str, transcript_text: str):
             
     return True
 
-def search_vector_index(job_id: str, question: str, top_k: int = 3) -> list[str]:
+def _keyword_fallback(chunks: list[str], question: str, top_k: int) -> list[str]:
+    """Return chunks that share important words with the question."""
+    if not chunks:
+        return []
+
+    terms = [term.lower() for term in re.findall(r"[a-zA-Z0-9]+", question) if len(term) > 2]
+    if not terms:
+        return chunks[:top_k]
+
+    scored: list[tuple[int, str]] = []
+    for chunk in chunks:
+        chunk_text = chunk.lower()
+        score = sum(1 for term in set(terms) if term in chunk_text)
+        if score > 0:
+            scored.append((score, chunk))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [chunk for _, chunk in scored[:top_k]]
+
+
+def search_vector_index(job_id: str, question: str, top_k: int | None = None) -> list[str]:
     """
     Takes a user's question, searches the FAISS index, and returns the most relevant transcript chunks.
     """
-    job_dir = os.path.join("vector_store", job_id)
+    if top_k is None:
+        top_k = settings.RAG_TOP_K
+    job_dir = os.path.join(settings.VECTOR_DIR, job_id)
     index_path = os.path.join(job_dir, "index.faiss")
     chunks_path = os.path.join(job_dir, "chunks.txt")
     
@@ -79,14 +108,37 @@ def search_vector_index(job_id: str, question: str, top_k: int = 3) -> list[str]
     
     # Convert the user's question into a vector
     question_vector = model.encode([question])
+    question_array = np.asarray(question_vector, dtype='float32')
+    if question_array.ndim == 1:
+        question_array = question_array.reshape(1, -1)
+    elif question_array.ndim == 0:
+        question_array = question_array.reshape(1, 1)
+    question_array = np.atleast_2d(question_array)
     
     # Search the index for the closest matches
-    distances, indices = index.search(np.array(question_vector).astype('float32'), top_k)
+    distances, indices = index.search(question_array, top_k)
     
     # Retrieve the actual text for the winning indices
     results = []
     for idx in indices[0]:
         if idx != -1 and idx < len(chunks):
             results.append(chunks[idx])
-            
+
+    # Fallback to keyword overlap if semantic search returns nothing useful
+    if not results:
+        return _keyword_fallback(chunks, question, top_k)
+
+    # If semantic search found only weakly related chunks, try keyword overlap too
+    if len(results) < max(2, top_k):
+        keyword_hits = _keyword_fallback(chunks, question, top_k)
+        if keyword_hits:
+            # Prefer unique chunks and keep the semantic ones first when available
+            seen = {chunk for chunk in results}
+            for chunk in keyword_hits:
+                if chunk not in seen:
+                    results.append(chunk)
+                    seen.add(chunk)
+                    if len(results) >= top_k:
+                        break
+    
     return results

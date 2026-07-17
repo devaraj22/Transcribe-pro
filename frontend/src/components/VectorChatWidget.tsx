@@ -1,5 +1,5 @@
 ﻿import React, { useState } from 'react';
-import { ApiClient } from '../services/apiclient';
+import { ApiClient } from '../services/apiClient';
 
 interface Message {
   id: number;

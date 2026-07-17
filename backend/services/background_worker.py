@@ -1,6 +1,11 @@
 import os
+<<<<<<< HEAD
 from backend.app.modules.meeting_mode.background_jobs import update_job_status
 from backend.app.modules.meeting_mode.pipeline import run_meeting_mode
+=======
+from backend.services.job_manager import update_job_status
+from backend.services.transcription_service import run_meeting_mode
+>>>>>>> 8b919d0 (update model)
 from backend.services.faiss_service import create_vector_index
 from backend.services.history_service import append_to_history
 

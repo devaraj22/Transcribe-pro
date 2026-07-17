@@ -2,8 +2,10 @@ import os
 import json
 from datetime import datetime
 
-# Path to the history file as outlined in the storage blueprint
-HISTORY_FILE_PATH = os.path.join("storage", "history.json")
+from backend.app.core.config import settings
+
+# Path to the history file derived from the central settings object
+HISTORY_FILE_PATH = settings.HISTORY_FILE
 MAX_HISTORY_ITEMS = 5
 
 def initialize_history_file():

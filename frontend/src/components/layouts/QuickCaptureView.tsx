@@ -4,7 +4,7 @@ import { FileUploader } from '../forms/FileUploader';
 import { LanguageSelector } from '../forms/LanguageSelector';
 import { TranscriptEditor } from '../TranscriptEditor';
 import { ProgressBar } from '../ui/ProgressBar';
-import { ApiClient } from '../../services/apiclient';
+import { ApiClient } from '../../services/apiClient';
 import { useJobPolling } from '../../hooks/useJobPolling';
 import { HistoryItem } from '../../types';
 
@@ -119,91 +119,78 @@ export const QuickCaptureView: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px', height: '100%' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-main)' }}>Quick Capture Workspace</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '15px', lineHeight: 1.5 }}>
-            Record short audio notes or upload small media files for rapid transcription. The same unified VoiceScribe engine powers your quick notes.
-          </p>
-        </div>
+    <div className="workspace-shell">
+      <div className="workspace-main">
+        <section className="hero-card">
+          <div className="hero-copy">
+            <div className="eyebrow">Live Workspace</div>
+            <h2>Quick Capture Workspace</h2>
+            <p>Record short audio notes or upload small media files for rapid transcription with a polished, modern workflow.</p>
+          </div>
+          <div className="hero-badge">{processing ? 'Processing' : 'Ready'}</div>
+        </section>
 
-        <div style={{ display: 'grid', gap: '24px' }}>
-          <div style={{ padding: '28px', border: '1px solid var(--border-color)', borderRadius: '18px', backgroundColor: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-main)' }}>Capture & process</h3>
-                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  Capture a clip, choose language mode, and submit for quick transcription.
-                </p>
-              </div>
-              <LanguageSelector value={languageMode} onChange={setLanguageMode} />
+        <section className="panel-card">
+          <div className="panel-header">
+            <div>
+              <h3 className="panel-title">Capture & process</h3>
+              <p className="panel-subtitle">Capture a clip, choose language mode, and submit for quick transcription.</p>
             </div>
-
-            <div style={{ display: 'grid', gap: '20px' }}>
-              <AudioRecorder onRecordedFile={processFile} />
-              <FileUploader onFileSelected={processFile} />
-            </div>
+            <LanguageSelector value={languageMode} onChange={setLanguageMode} />
           </div>
 
-          <div style={{ display: 'grid', gap: '16px', padding: '28px', border: '1px solid var(--border-color)', borderRadius: '18px', backgroundColor: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-main)' }}>Status</h3>
-                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>{currentStatusText}</p>
-              </div>
-              <div style={{ color: processing ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 700 }}>{processing ? 'Working…' : 'Idle'}</div>
-            </div>
-
-            {(processing || isQueued) && <ProgressBar progress={progress || 10} label="Short capture in progress" />}
-
-            {error && <div style={{ color: '#dc2626', fontWeight: 600 }}>{error}</div>}
-
-            {jobResult?.full_text && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <button
-                  onClick={shareToWhatsApp}
-                  style={{ padding: '12px 18px', borderRadius: '12px', border: 'none', backgroundColor: 'var(--accent)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Share to WhatsApp
-                </button>
-                <button
-                  onClick={handleDownloadTxt}
-                  style={{ padding: '12px 18px', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-main)', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Download .txt
-                </button>
-              </div>
-            )}
+          <div className="control-stack">
+            <AudioRecorder onRecordedFile={processFile} />
+            <FileUploader onFileSelected={processFile} />
           </div>
-        </div>
+        </section>
+
+        <section className="panel-card">
+          <div className="panel-header">
+            <div>
+              <h3 className="panel-title">Status</h3>
+              <p className="panel-subtitle">{currentStatusText}</p>
+            </div>
+            <div className="status-pill-inline">{processing ? 'Working…' : 'Idle'}</div>
+          </div>
+
+          {(processing || isQueued) && <ProgressBar progress={progress || 10} label="Short capture in progress" />}
+
+          {error && <div style={{ color: '#f87171', fontWeight: 700, marginTop: '12px' }}>{error}</div>}
+
+          {jobResult?.full_text && (
+            <div className="action-row" style={{ marginTop: '16px' }}>
+              <button className="action-btn primary" onClick={shareToWhatsApp}>
+                Share to WhatsApp
+              </button>
+              <button className="action-btn" onClick={handleDownloadTxt}>
+                Download .txt
+              </button>
+            </div>
+          )}
+        </section>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', height: '100%' }}>
-        <div style={{ padding: '28px', border: '1px solid var(--border-color)', borderRadius: '18px', backgroundColor: 'var(--bg-surface)', flex: 1, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-main)' }}>Recent Quick Capture History</h3>
+      <div className="workspace-side">
+        <section className="panel-card">
+          <div className="panel-header">
+            <div>
+              <h3 className="panel-title">Recent History</h3>
+              <p className="panel-subtitle">Your latest quick capture sessions.</p>
+            </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', display: 'grid', gap: '14px' }}>
+          <div className="history-list">
             {history.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>No recent quick capture sessions yet.</p>
+              <p className="empty-state">No recent quick capture sessions yet.</p>
             ) : (
               history.map((item) => (
-                <div
-                  key={item.job_id}
-                  style={{
-                    padding: '14px',
-                    borderRadius: '14px',
-                    backgroundColor: 'var(--bg-main)',
-                    border: '1px solid var(--border-color)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{item.title}</span>
+                <div key={item.job_id} className="history-item">
+                  <div className="top-line">
+                    <span style={{ fontWeight: 700, color: '#f8fafc' }}>{item.title}</span>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{item.status}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                  <div className="meta-line">
                     <span>{item.timestamp}</span>
                     <span>{item.job_id.slice(0, 8)}</span>
                   </div>
@@ -211,11 +198,17 @@ export const QuickCaptureView: React.FC = () => {
               ))
             )}
           </div>
-        </div>
+        </section>
 
-        <div style={{ flex: 1, padding: '28px', border: '1px solid var(--border-color)', borderRadius: '18px', backgroundColor: 'var(--bg-surface)', overflowY: 'auto' }}>
+        <section className="panel-card transcript-shell">
+          <div className="panel-header">
+            <div>
+              <h3 className="panel-title">Transcript Viewer</h3>
+              <p className="panel-subtitle">Live output for the selected result.</p>
+            </div>
+          </div>
           <TranscriptEditor fullText={jobResult?.full_text} segments={jobResult?.segments} loading={processing && isQueued} />
-        </div>
+        </section>
       </div>
     </div>
   );

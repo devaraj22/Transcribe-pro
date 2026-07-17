@@ -16,7 +16,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
       {/* Sidebar Panel */}
       <aside className="sidebar">
         <div>
-          {/* Logo Brand Header */}
           <div className="sidebar-header">
             <div className="logo-box">
               <Cpu size={20} />
@@ -27,7 +26,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
             </div>
           </div>
 
-          {/* Navigation Links */}
           <nav className="sidebar-nav">
             <button
               onClick={() => setActiveTab('quick')}
@@ -55,7 +53,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
           </nav>
         </div>
 
-        {/* Sidebar Footer Metadata */}
         <div className="sidebar-footer">
           <div className="meta-row">
             <span>LLM Target:</span>
@@ -70,15 +67,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
         </div>
       </aside>
 
-      {/* Main Content Workspace */}
       <main className="main-wrapper">
         <header className="top-header">
           <div className="breadcrumb">
             <span className="breadcrumb-label">Workspace /</span>
-            <span className="breadcrumb-current">{activeTab} View</span>
+            <span className="breadcrumb-current">{activeTab} view</span>
           </div>
-          <div className="engine-tag">
-            Engine Version: 1.0.0-PRO
+          <div className="header-actions">
+            <span className="status-pill">
+              <span className="status-dot"></span> Engine Live
+            </span>
+            <div className="engine-tag">Version 1.0.0-PRO</div>
           </div>
         </header>
 

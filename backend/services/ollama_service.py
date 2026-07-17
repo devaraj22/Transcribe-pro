@@ -1,6 +1,7 @@
 import httpx
 from backend.app.core.config import settings
 
+
 async def _call_ollama(prompt: str, system_prompt: str = "You are a helpful AI assistant.") -> tuple[str, bool]:
     """
     Core function to communicate with the local Ollama instance asynchronously.
@@ -11,25 +12,33 @@ async def _call_ollama(prompt: str, system_prompt: str = "You are a helpful AI a
         "model": settings.LLM_MODEL,
         "prompt": prompt,
         "system": system_prompt,
-        "stream": False
+        "stream": False,
+        "options": {
+            "num_predict": 80,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "repeat_penalty": 1.05,
+            "num_ctx": 2048,
+        },
     }
-    
-    async with httpx.AsyncClient(timeout=120.0) as client:
+
+    timeout = 20.0
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             print(f"Asking local Ollama ({payload['model']}) to process data...")
             response = await client.post(url, json=payload)
             response.raise_for_status()
-            
+
             data = response.json()
             result = data.get("response", "").strip()
             return (result, False)  # Success
-            
+
         except httpx.ConnectError:
             error_msg = f"Ollama service is not running. Please start Ollama at {settings.OLLAMA_HOST}"
             print(f"ERROR: {error_msg}")
             return (error_msg, True)  # Connection error
-        except httpx.TimeoutException:
-            error_msg = f"Ollama service timeout. The LLM is taking too long to respond."
+        except (httpx.TimeoutException, httpx.ReadTimeout):
+            error_msg = "Ollama service timeout. The LLM is taking too long to respond."
             print(f"ERROR: {error_msg}")
             return (error_msg, True)  # Timeout error
         except Exception as e:

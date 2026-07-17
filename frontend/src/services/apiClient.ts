@@ -1,5 +1,6 @@
-// Define the base URL for your backend (Update this port when your Python server is running)
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Define the base URL for your backend. The Vite env var lets the UI match the
+// backend port without hard-coding a single localhost URL in the source tree.
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
 
 export const ApiClient = {
   async processMedia(file: File, languageMode: string = 'automatic'): Promise<any> {

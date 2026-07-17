@@ -43,7 +43,8 @@ def update_job_status(
 def get_job_status(job_id: str) -> dict:
     """Retrieves the current state of a background job for the frontend polling."""
     if job_id not in _active_jobs:
-        return {"status": "not_found", "progress": 0.0, "result": None}
+        create_job(job_id)
+        return _active_jobs[job_id]
         
     return _active_jobs[job_id]
 

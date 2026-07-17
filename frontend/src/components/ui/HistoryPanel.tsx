@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { X, Clock } from 'lucide-react';
-import { ApiClient } from '../../services/apiclient';
+import { ApiClient } from '../../services/apiClient';
 import { HistoryItem } from '../../types';
 
 interface HistoryPanelProps {

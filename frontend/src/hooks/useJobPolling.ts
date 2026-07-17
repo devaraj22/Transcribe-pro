@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ApiClient } from '../services/apiclient';
+import { ApiClient } from '../services/apiClient';
 
 export function useJobPolling(
   jobId: string | null,

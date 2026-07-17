@@ -1,15 +1,15 @@
-# In-memory database to store background job status and results
-# In production, this would be replaced by Redis or a database.
-_job_database = {}
+"""Compatibility helpers for background job state.
 
-def update_job_status(job_id: str, status: str, progress: float = 0.0, result: dict = None):
-    """Updates the status and data of a background process."""
-    _job_database[job_id] = {
-        "status": status,
-        "progress": progress,
-        "result": result
-    }
+This module intentionally re-exports the canonical in-memory job-state functions
+from the meeting-mode background jobs module so that all API endpoints, the
+worker, and any older imports share the same mutable storage.
+"""
 
-def get_job_status(job_id: str) -> dict:
-    """Retrieves the current state of a background job."""
-    return _job_database.get(job_id, {"status": "not_found", "progress": 0.0, "result": None})
+from backend.app.modules.meeting_mode.background_jobs import (
+    clear_job,
+    create_job,
+    get_job_status,
+    update_job_status,
+)
+
+__all__ = ["create_job", "update_job_status", "get_job_status", "clear_job"]

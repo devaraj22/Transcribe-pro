@@ -25,11 +25,12 @@ async def summarize_text(request: EnhanceRequest):
     """
     try:
         summary_text, is_error = await generate_summary(request.text)
-        
+
         if is_error:
-            # Return error message - client can check if it starts with "Error:"
-            raise HTTPException(status_code=503, detail=summary_text)
-        
+            return {
+                "summary": "The AI summary service is currently unavailable. Please try again once Ollama has finished loading the model."
+            }
+
         return {"summary": summary_text}
     except HTTPException:
         raise
