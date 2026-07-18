@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from backend.app.core.config import settings
 from backend.app.schemas.rag import RAGRequest, RAGResponse
 from backend.services.faiss_service import search_vector_index, index_exists
+
 from backend.services.ollama_service import _call_ollama
 
 router = APIRouter()
@@ -13,7 +14,7 @@ def build_context_block(relevant_chunks: list[str], max_chars: int = 4000) -> st
 
     Chunks are joined with a separator. The total character budget is
     max_chars — enough to hold rich context without blowing up the LLM
-    context window.
+    context window....
     """
     context_parts: list[str] = []
     used_chars = 0
