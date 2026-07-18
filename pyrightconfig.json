@@ -1,0 +1,21 @@
+{
+  "include": ["backend", "benchmark", "examples"],
+  "exclude": [
+    ".venv",
+    "__pycache__",
+    "frontend",
+    "storage",
+    "vector_store"
+  ],
+  "pythonVersion": "3.10",
+  "pythonPlatform": "Windows",
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "extraPaths": ["."]
+}

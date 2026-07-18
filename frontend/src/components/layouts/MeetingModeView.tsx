@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { LanguageSelector } from '../forms/LanguageSelector';
+import React, { useEffect, useState } from 'react';
+import { LanguageSelector, VadSelector } from '../forms/LanguageSelector';
 import { FileUploader } from '../forms/FileUploader';
 import { TranscriptEditor } from '../TranscriptEditor';
 import { VectorChatWidget } from '../VectorChatWidget';
@@ -9,6 +9,7 @@ import { useJobPolling } from '../../hooks/useJobPolling';
 
 export const MeetingModeView: React.FC = () => {
   const [languageMode, setLanguageMode] = useState('automatic');
+  const [vadMethod, setVadMethod] = useState('pyannote');
   const [jobId, setJobId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [jobResult, setJobResult] = useState<{ full_text?: string; segments?: any[] } | null>(null);
@@ -141,14 +142,19 @@ export const MeetingModeView: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div style={{ padding: '28px', border: '1px solid var(--border-color)', borderRadius: '18px', backgroundColor: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-main)' }}>Upload meeting media</h3>
-                <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  Upload audio or video and let VoiceScribe run the unified meeting pipeline.
-                </p>
+            <div style={{ marginBottom: '18px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text-main)' }}>Upload meeting media</h3>
+              <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
+                Upload audio or video and let VoiceScribe run the unified meeting pipeline.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '18px' }}>
+              <div style={{ flex: 1 }}>
+                <LanguageSelector value={languageMode} onChange={setLanguageMode} />
               </div>
-              <LanguageSelector value={languageMode} onChange={setLanguageMode} />
+              <div style={{ flex: 1 }}>
+                <VadSelector value={vadMethod} onChange={setVadMethod} />
+              </div>
             </div>
 
             <FileUploader
@@ -218,11 +224,12 @@ export const MeetingModeView: React.FC = () => {
             </div>
             {processing && <ProgressBar progress={progress || 20} label="Meeting processing in progress" />}
             {error && <div style={{ color: '#dc2626', fontWeight: 600, marginTop: '12px' }}>{error}</div>}
-            <TranscriptEditor fullText={jobResult?.full_text} segments={jobResult?.segments} loading={processing} />
+            <TranscriptEditor fullText={jobResult?.full_text} segments={jobResult?.segments} loading={processing} jobId={jobId ?? undefined} />
           </div>
 
           <div style={{ padding: '28px', border: '1px solid var(--border-color)', borderRadius: '18px', backgroundColor: 'var(--bg-surface)', minHeight: '420px' }}>
-            <VectorChatWidget jobId={jobResult?.full_text ? jobId : null} />
+            {/* Pass jobId immediately — VectorChatWidget polls /rag/status until index is ready */}
+            <VectorChatWidget jobId={jobId} />
           </div>
         </div>
       </div>

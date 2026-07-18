@@ -1,8 +1,24 @@
-export interface HistoryItem {
-  job_id: string;
-  title: string;
-  status: string;
-  timestamp: string;
+// ==========================================
+// Word-level timing (for karaoke highlighting)
+// ==========================================
+export interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+  score?: number;
+}
+
+// ==========================================
+// Core transcript types
+// ==========================================
+export interface TranscriptSegment {
+  speaker?: string;
+  start?: number;
+  end?: number;
+  language?: string;
+  text: string;
+  /** Word-level timing entries — present when WhisperX alignment is used */
+  words?: WordTiming[];
 }
 
 export interface ProcessResponse {
@@ -23,11 +39,11 @@ export interface JobStatusResponse {
   };
 }
 
-export interface TranscriptSegment {
-  speaker?: string;
-  start?: number;
-  end?: number;
-  text: string;
+export interface HistoryItem {
+  job_id: string;
+  title: string;
+  status: string;
+  timestamp: string;
 }
 
 export interface RAGResponse {

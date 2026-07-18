@@ -1,14 +1,20 @@
 from fastapi import APIRouter, HTTPException
 from backend.app.core.config import settings
 from backend.app.schemas.rag import RAGRequest, RAGResponse
-from backend.services.faiss_service import search_vector_index
+from backend.services.faiss_service import search_vector_index, index_exists
 from backend.services.ollama_service import _call_ollama
 
 router = APIRouter()
 
 
-def build_context_block(relevant_chunks: list[str], max_chars: int = 2500) -> str:
-    """Trim the retrieved context so Ollama receives a bounded prompt."""
+def build_context_block(relevant_chunks: list[str], max_chars: int = 4000) -> str:
+    """
+    Assemble retrieved chunks into a bounded context block for the LLM prompt.
+
+    Chunks are joined with a separator. The total character budget is
+    max_chars — enough to hold rich context without blowing up the LLM
+    context window.
+    """
     context_parts: list[str] = []
     used_chars = 0
 
@@ -16,65 +22,101 @@ def build_context_block(relevant_chunks: list[str], max_chars: int = 2500) -> st
         chunk_text = chunk.strip()
         if not chunk_text:
             continue
-        next_len = used_chars + len(chunk_text) + 2
-        if next_len > max_chars and context_parts:
+        # Include this chunk only if it fits (always include the first one)
+        if context_parts and used_chars + len(chunk_text) + 8 > max_chars:
             break
         context_parts.append(chunk_text)
-        used_chars = next_len
-
-    if not context_parts:
-        return ""
+        used_chars += len(chunk_text) + 8  # +8 for separator
 
     return "\n\n---\n\n".join(context_parts)
+
+
+@router.get("/status/{job_id}")
+async def rag_index_status(job_id: str):
+    """
+    Check whether a FAISS index is ready for a given job.
+
+    Returns:
+        ``{ "indexed": bool, "job_id": str }``
+    """
+    return {
+        "job_id": job_id,
+        "indexed": index_exists(job_id),
+    }
 
 
 @router.post("/ask", response_model=RAGResponse)
 async def ask_question(request: RAGRequest):
     """
-    Retrieves relevant document chunks via FAISS and generates an answer using Ollama.
+    Retrieve relevant transcript chunks via FAISS and generate a grounded
+    answer using the local Ollama model.
+
+    Flow:
+      1. Check index exists → 404 if not.
+      2. Semantic + keyword search → top-k chunks.
+      3. Build bounded LLM context from chunks.
+      4. Call Ollama with a strict grounding system prompt.
+      5. Return answer + source chunks (for frontend citation display).
     """
     try:
-        # 1. Retrieve a small, bounded set of relevant chunks from the local FAISS index
-        relevant_chunks = search_vector_index(request.job_id, request.question, top_k=max(2, settings.RAG_TOP_K))
+        # 1. Guard: index must exist
+        if not index_exists(request.job_id):
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"No index found for job '{request.job_id}'. "
+                    "The transcript may still be processing, or this job ID is invalid."
+                ),
+            )
 
-        # Check if the document hasn't been indexed yet
-        if not relevant_chunks or "No index found" in relevant_chunks[0]:
-            raise HTTPException(status_code=404, detail="Index not found. Please wait for the document to finish processing.")
+        # 2. Semantic search
+        relevant_chunks = search_vector_index(
+            request.job_id,
+            request.question,
+            top_k=max(3, settings.RAG_TOP_K),
+        )
 
-        # 2. Build a bounded context for the LLM so the request stays fast
-        context = build_context_block(relevant_chunks, max_chars=2400)
+        if not relevant_chunks:
+            raise HTTPException(
+                status_code=404,
+                detail="The index exists but returned no relevant chunks for this question.",
+            )
+
+        # 3. Build LLM context (up to 4000 chars)
+        context = build_context_block(relevant_chunks, max_chars=4000)
         if not context:
             context = "No relevant transcript context found."
 
+        # 4. Build prompt
         system_prompt = (
-            "You are a meeting-assistant that answers from the provided transcript. "
-            "Use the context first, summarise it in a short, natural answer, and if the answer is not present, "
-            "say clearly that the transcript does not contain enough information to answer. "
-            "Do not invent facts."
+            "You are a meeting-assistant AI. Your ONLY source of truth is the "
+            "transcript excerpts provided below. Answer the user's question "
+            "concisely and accurately based solely on those excerpts. "
+            "If the answer cannot be determined from the transcript, say so clearly. "
+            "Do NOT invent facts or use outside knowledge."
         )
 
         prompt = (
-            f"Transcript context:\n\n{context}\n\n"
+            f"Transcript excerpts:\n\n{context}\n\n"
+            f"---\n\n"
             f"Question: {request.question}\n\n"
-            "Answer briefly and directly."
+            "Answer (be concise and direct, 1-4 sentences max):"
         )
 
-        # 3. Generate the answer using your local Qwen/Ollama model
+        # 5. Call Ollama
         answer, is_error = await _call_ollama(prompt, system_prompt=system_prompt)
-        if is_error:
-            fallback_answer = (
-                "The local AI model is currently unavailable or timed out. "
-                "Please try again after Ollama finishes loading the model."
-            )
-            return {
-                "answer": fallback_answer,
-                "sources": relevant_chunks,
-            }
 
-        return {
-            "answer": answer,
-            "sources": relevant_chunks
-        }
+        if is_error:
+            # Surface a helpful fallback instead of a raw error
+            fallback = (
+                "The local AI model is currently unavailable. "
+                "Please ensure Ollama is running (`ollama serve`) and the model is downloaded. "
+                "Here are the most relevant transcript excerpts:\n\n"
+                + "\n\n".join(f"• {c[:200]}…" if len(c) > 200 else f"• {c}" for c in relevant_chunks[:3])
+            )
+            return RAGResponse(answer=fallback, sources=relevant_chunks)
+
+        return RAGResponse(answer=answer, sources=relevant_chunks)
 
     except HTTPException:
         raise

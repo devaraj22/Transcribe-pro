@@ -1,139 +1,163 @@
-// Define the base URL for your backend. The Vite env var lets the UI match the
-// backend port without hard-coding a single localhost URL in the source tree.
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
+/**
+ * apiClient.ts
+ * ============
+ * Centralised HTTP client for the VoiceScribe AI backend.
+ *
+ * All methods throw on non-2xx responses so callers can catch and surface
+ * errors in the UI. The base URL is read from the VITE_API_BASE_URL env var
+ * so it works in both dev (localhost:8000) and production.
+ */
+
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
+).replace(/\/$/, '');
 
 export const ApiClient = {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Processing
+  // ─────────────────────────────────────────────────────────────────────────
+
   async processMedia(file: File, languageMode: string = 'automatic'): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('language_mode', languageMode);
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/process/`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Processing failed with status ${response.status}: ${text}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('Process error in ApiClient:', error);
-      throw error;
+    const response = await fetch(`${API_BASE_URL}/process/`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Processing failed (${response.status}): ${text}`);
     }
+    return response.json();
   },
 
   async checkJobStatus(jobId: string): Promise<any> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/process/${jobId}`);
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Status check failed with status ${response.status}: ${text}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Job status error in ApiClient:', error);
-      throw error;
+    const response = await fetch(`${API_BASE_URL}/process/${jobId}`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Status check failed (${response.status}): ${text}`);
     }
+    return response.json();
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Subtitle download
+  // ─────────────────────────────────────────────────────────────────────────
+
+  downloadSubtitle(jobId: string, fmt: 'ass' | 'srt' = 'ass'): void {
+    /** Triggers a browser download for the subtitle file. No async needed. */
+    const url = `${API_BASE_URL}/process/${jobId}/subtitle.${fmt}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcript_${jobId}.${fmt}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // GPU / model management
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async flushModels(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/process/flush`, { method: 'POST' });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Flush failed (${response.status}): ${text}`);
+    }
+    return response.json();
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RAG / Vector Q&A
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async checkRagIndexStatus(jobId: string): Promise<{ indexed: boolean; job_id: string }> {
+    const response = await fetch(`${API_BASE_URL}/rag/status/${jobId}`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`RAG status check failed (${response.status}): ${text}`);
+    }
+    return response.json();
   },
 
   async queryVectorDB(question: string, jobId: string): Promise<any> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/rag/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ question, job_id: jobId }),
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Vector query failed with status: ${response.status}: ${text}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Query error in ApiClient:', error);
-      throw error;
+    const response = await fetch(`${API_BASE_URL}/rag/ask`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, job_id: jobId }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Vector query failed (${response.status}): ${text}`);
     }
+    return response.json();
   },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // History
+  // ─────────────────────────────────────────────────────────────────────────
 
   async fetchHistory(): Promise<any> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/history/`);
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`History fetch failed with status ${response.status}: ${text}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('History fetch error in ApiClient:', error);
-      throw error;
+    const response = await fetch(`${API_BASE_URL}/history/`);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`History fetch failed (${response.status}): ${text}`);
     }
+    return response.json();
   },
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // AI Enhancement (Ollama)
+  // ─────────────────────────────────────────────────────────────────────────
+
   async summarizeText(text: string): Promise<any> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/enhance/summarize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      });
-      if (!response.ok) {
-        const textBody = await response.text();
-        throw new Error(`Summary failed with status ${response.status}: ${textBody}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Summary error in ApiClient:', error);
-      throw error;
+    const response = await fetch(`${API_BASE_URL}/enhance/summarize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) {
+      const textBody = await response.text();
+      throw new Error(`Summary failed (${response.status}): ${textBody}`);
     }
+    return response.json();
   },
 
   async extractActionItems(text: string): Promise<any> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/enhance/action-items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text }),
-      });
-      if (!response.ok) {
-        const textBody = await response.text();
-        throw new Error(`Action items failed with status ${response.status}: ${textBody}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Action items error in ApiClient:', error);
-      throw error;
+    const response = await fetch(`${API_BASE_URL}/enhance/action-items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) {
+      const textBody = await response.text();
+      throw new Error(`Action items failed (${response.status}): ${textBody}`);
     }
+    return response.json();
   },
 
-  async downloadReport(payload: { title?: string; summary?: string; action_items?: string[]; full_text: string }) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/report/download`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        const textBody = await response.text();
-        throw new Error(`PDF download failed with status ${response.status}: ${textBody}`);
-      }
+  // ─────────────────────────────────────────────────────────────────────────
+  // PDF Report
+  // ─────────────────────────────────────────────────────────────────────────
 
-      const blob = await response.blob();
-      return blob;
-    } catch (error) {
-      console.error('Download report error in ApiClient:', error);
-      throw error;
+  async downloadReport(payload: {
+    title?: string;
+    summary?: string;
+    action_items?: string[];
+    full_text: string;
+  }): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/report/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const textBody = await response.text();
+      throw new Error(`PDF download failed (${response.status}): ${textBody}`);
     }
+    return response.blob();
   },
 };

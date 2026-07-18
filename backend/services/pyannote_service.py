@@ -1,35 +1,11 @@
-<<<<<<< HEAD
-=======
-import torch
-from pyannote.audio import Pipeline
-from backend.app.core.config import settings
+"""
+pyannote_service.py — Backwards-compatibility shim.
 
-_diarization_pipeline = None
+Diarization is now fully managed through `whisper_service.get_diarizer()` which
+wraps the Pyannote pipeline inside WhisperXDiarizer. This module re-exports
+the public interface so any legacy callers continue to work without changes.
+"""
 
-def get_diarization_pipeline():
-    """
-    Loads the Pyannote speaker diarization pipeline into memory.
-    """
-    global _diarization_pipeline
-    
-    if _diarization_pipeline is None:
-        if not settings.HF_TOKEN:
-            print("⚠️ WARNING: HF_TOKEN is missing from your environment variables.")
-            return None
-            
-        print("⏳ Loading Pyannote diarization pipeline...")
-        try:
-            _diarization_pipeline = Pipeline.from_pretrained(
-                settings.DIARIZATION_MODEL,
-                use_auth_token=settings.HF_TOKEN
-            )
-            
-            if _diarization_pipeline and torch.cuda.is_available():
-                _diarization_pipeline.to(torch.device("cuda"))
-                
-        except Exception as e:
-            print(f"❌ Failed to load Pyannote pipeline: {e}")
-            raise e
-            
-    return _diarization_pipeline
->>>>>>> 8b919d0 (update model)
+from backend.services.whisper_service import get_diarizer as get_diarization_pipeline
+
+__all__ = ["get_diarization_pipeline"]

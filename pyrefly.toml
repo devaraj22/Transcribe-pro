@@ -1,0 +1,33 @@
+# pyrefly.toml — Pyrefly type-checker configuration for Transcribe-Pro
+#
+# See: https://pyrefly.org/en/docs/configuration/
+
+# Tell Pyrefly where the Python source root is so that `backend.*` imports resolve.
+python_environment = ".venv"
+
+# Project source roots — Pyrefly will look for packages here.
+# This makes `from backend.app.core.config import settings` resolvable.
+source_roots = ["."]
+
+# Directories/files to exclude from analysis (test fixtures, build artefacts, etc.)
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "*.egg-info",
+    "dist",
+    "build",
+    "frontend",
+    "storage",
+    "vector_store",
+]
+
+# Suppress errors for third-party packages that don't ship type stubs yet.
+# These are the main libraries used that lack full stubs.
+ignore_missing_imports = true
+
+# Only run Pyrefly on properly-structured Python packages (directories with
+# __init__.py), not on arbitrary standalone scripts.  This prevents the
+# "virtual inmemory" false-positive diagnostics that appear when Pyrefly
+# analyses individual lines of an open file as standalone snippets.
+check_untyped_defs = false
