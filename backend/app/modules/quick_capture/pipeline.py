@@ -34,14 +34,33 @@ def run_quick_capture(audio_path: str, language_mode: str = "automatic") -> Dict
     transcriber = get_transcriber()
 
     language = None if language_mode.lower() == "automatic" else language_mode.lower()
-    segments, info = transcriber.transcribe(audio_path, language=language)
+    
+    # 1. Run transcription
+    tx_result = transcriber.transcribe(audio_path, language=language)
+
+    # 2. Safely handle both WhisperX (dict) and faster-whisper (tuple) outputs
+    if isinstance(tx_result, tuple):
+        _segs, info = tx_result
+        detected_language = info.language
+        raw_segments = [
+            {
+                "start": s.start,
+                "end": s.end,
+                "text": s.text,
+                "words": getattr(s, "words", [])
+            } for s in _segs
+        ]
+    else:
+        detected_language = tx_result.get("language", "en")
+        raw_segments = tx_result.get("segments", [])
 
     full_text: List[str] = []
     formatted_segments: List[Dict[str, Any]] = []
     speaker_lookup: Dict[str, str] = {}
 
-    for seg in segments:
-        text = seg.text.strip()
+    # 3. Process the dictionary segments
+    for seg in raw_segments:
+        text = str(seg.get("text", "")).strip()
         if not text:
             continue
 
@@ -53,18 +72,18 @@ def run_quick_capture(audio_path: str, language_mode: str = "automatic") -> Dict
         words = [
             {
                 "word": str(w.get("word", "")).strip(),
-                "start": round(float(w.get("start", seg.start)), 3),
-                "end": round(float(w.get("end", seg.end)), 3),
+                "start": round(float(w.get("start", seg.get("start", 0.0))), 3),
+                "end": round(float(w.get("end", seg.get("end", 0.0))), 3),
                 "score": round(float(w.get("score", 0.0)), 4),
             }
-            for w in (getattr(seg, "words", []) or [])
+            for w in seg.get("words", [])
         ]
 
         formatted_segments.append(
             {
-                "start": round(seg.start, 2),
-                "end": round(seg.end, 2),
-                "language": info.language,
+                "start": round(float(seg.get("start", 0.0)), 2),
+                "end": round(float(seg.get("end", 0.0)), 2),
+                "language": detected_language,
                 "speaker": speaker_label,
                 "text": text,
                 "words": words,

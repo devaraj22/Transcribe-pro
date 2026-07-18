@@ -1,11 +1,11 @@
+﻿import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.core.config import settings
-
-# Import the centralized API router that exposes /api/v1 endpoints
 from backend.app.api.v1.router import api_router
 
 
@@ -15,19 +15,21 @@ async def lifespan(app: FastAPI):
     Lifespan context manager runs before the server starts accepting requests
     and cleans up when the server stops.
     """
-    print(" Booting up VoiceScribe AI...")
-    print(f" Storage directories verified at: {settings.STORAGE_DIR}")
-    print(f" Whisper model config set to '{settings.WHISPER_MODEL}' ({settings.WHISPER_BACKEND} backend).")
-    if settings.HF_TOKEN:
-        print(" HF_TOKEN is configured for diarization.")
+    print("🚀 Booting up VoiceScribe AI...")
+    print(f"📁 Storage directories verified at: {settings.STORAGE_DIR}")
+    print(f"🧠 Whisper model config set to '{getattr(settings, 'WHISPER_MODEL', 'Unknown')}' ({getattr(settings, 'WHISPER_BACKEND', 'Unknown')} backend).")
+    
+    if getattr(settings, "HF_TOKEN", None):
+        print("✅ HF_TOKEN is configured for diarization.")
     else:
-        print(" HF_TOKEN is not configured; diarization may be unavailable.")
-    print(" Startup complete. Models will load on demand when a transcription request begins.")
+        print("⚠️ HF_TOKEN is not configured; diarization may be unavailable.")
+        
+    print("🟢 Startup complete. Models will load on demand when a transcription request begins.")
 
     yield  # Server is now running and accepting requests
 
     # Cleanup on Shutdown
-    print(" Shutting down VoiceScribe AI backend. Clearing memory...")
+    print("🛑 Shutting down VoiceScribe AI backend. Clearing memory...")
 
 
 # Initialize the FastAPI application
@@ -39,43 +41,56 @@ app = FastAPI(
 )
 
 # ==========================================
-#  Security & CORS Middleware
+# 🛡️ Security & Performance Middleware
 # ==========================================
-# React/Vite typically runs on localhost:5173 during development.
-# The regex form keeps local development ports flexible while still blocking unrelated origins.
+
+# 1. Performance: Compresses large transcription JSONs to speed up frontend loading times.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 2. CORS: Allows your cloud frontend to safely communicate with this backend.
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$",
+    allow_origins=["*"], 
     allow_credentials=True,
-    allow_methods=["*"],  # Allows GET, POST, OPTIONS, etc.
+    allow_methods=["*"],  
     allow_headers=["*"],
 )
 
 # ==========================================
 # 🚦 API Routes
 # ==========================================
-# Connect all the individual endpoints (process, enhance, rag, report, history) under the /api/v1 prefix
+# Connect all endpoints under the /api/v1 prefix
 app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/", include_in_schema=False)
 async def root_redirect():
+    """Redirects the base URL to a safe API ping endpoint."""
     return RedirectResponse(url="/api/v1/ping")
 
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
+    """Prevents browser errors when looking for a favicon."""
     return JSONResponse(status_code=204, content=None)
 
 
 @app.get("/health", tags=["System"])
 async def health_check():
-    """Simple health check endpoint to verify the server is alive."""
+    """Simple health check endpoint to verify the server is alive and read config."""
     return {
         "status": "online",
         "service": "VoiceScribe AI Backend",
-        "whisper_model": settings.WHISPER_MODEL,
-        "whisper_backend": settings.WHISPER_BACKEND,
-        "llm_target": settings.LLM_MODEL,
-        "diarization_enabled": settings.ENABLE_DIARIZATION,
+        "whisper_model": getattr(settings, "WHISPER_MODEL", "Unknown"),
+        "whisper_backend": getattr(settings, "WHISPER_BACKEND", "Unknown"),
+        "llm_target": getattr(settings, "LLM_MODEL", "Unknown"),
+        "diarization_enabled": getattr(settings, "ENABLE_DIARIZATION", False),
     }
+
+
+# ==========================================
+# 🚀 Direct Execution block
+# ==========================================
+if __name__ == "__main__":
+    # This allows you to start the server simply by running `python backend/app/main.py`
+    uvicorn.run("backend.app.main:app", host="0.0.0.0", port=8000, reload=True)

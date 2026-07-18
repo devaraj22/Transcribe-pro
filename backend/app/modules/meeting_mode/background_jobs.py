@@ -18,7 +18,7 @@ def create_job(job_id: str) -> None:
 
 def update_job_status(
     job_id: str, 
-    status: str, 
+    status: Optional[str] = None,  # Made optional!
     progress: Optional[float] = None, 
     result: Optional[dict] = None,
     error: Optional[str] = None
@@ -28,7 +28,10 @@ def update_job_status(
         # If the job isn't found, auto-create it to prevent crash loops
         create_job(job_id)
 
-    _active_jobs[job_id]["status"] = status
+    # Only update status if one was provided
+    if status is not None:
+        _active_jobs[job_id]["status"] = status
+        
     _active_jobs[job_id]["updated_at"] = time.time()
     
     if progress is not None:

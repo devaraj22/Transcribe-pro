@@ -59,8 +59,8 @@ def _smart_chunk(transcript_text: str, max_chars: int = 800, overlap_chars: int 
 
     Args:
         transcript_text: Full transcript string.
-        max_chars:        Target maximum characters per chunk.
-        overlap_chars:    Characters of overlap between consecutive chunks.
+        max_chars:       Target maximum characters per chunk.
+        overlap_chars:   Characters of overlap between consecutive chunks.
 
     Returns:
         List of non-empty text chunks.
@@ -114,8 +114,8 @@ def create_vector_index(job_id: str, transcript_text: str) -> bool:
     Chunk a transcript, embed chunks, and persist a FAISS index to disk.
 
     Args:
-        job_id:           Unique job identifier used as directory name.
-        transcript_text:  Full transcript string (speaker-turn format or plain).
+        job_id:         Unique job identifier used as directory name.
+        transcript_text: Full transcript string (speaker-turn format or plain).
 
     Returns:
         True on success, False if nothing was indexed.
@@ -135,7 +135,10 @@ def create_vector_index(job_id: str, transcript_text: str) -> bool:
     embeddings = model.encode(chunks, show_progress_bar=False, normalize_embeddings=True)
     embeddings_array = np.asarray(embeddings, dtype="float32")
     embeddings_array = np.atleast_2d(embeddings_array)
-
+    
+    # Force C-contiguous memory layout for FAISS stability
+    embeddings_array = np.ascontiguousarray(embeddings_array)
+    
     # IndexFlatIP works with normalised vectors → cosine similarity via inner product
     dimension = embeddings_array.shape[1]
     index = faiss.IndexFlatIP(dimension)
@@ -211,6 +214,9 @@ def search_vector_index(job_id: str, question: str, top_k: Optional[int] = None)
     question_vector = model.encode([question], normalize_embeddings=True)
     question_array = np.asarray(question_vector, dtype="float32")
     question_array = np.atleast_2d(question_array)
+    
+    # Ensure question array is also C-contiguous for search
+    question_array = np.ascontiguousarray(question_array)
 
     k = min(top_k, len(chunks))
     distances, indices = index.search(question_array, k)

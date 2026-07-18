@@ -12,6 +12,9 @@ const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 ).replace(/\/$/, '');
 
+// 🔍 Debugging line to verify the URL is loaded correctly in the browser console
+console.log('🔌 API Client Initialized. Targeting Backend URL:', API_BASE_URL);
+
 export const ApiClient = {
   // ─────────────────────────────────────────────────────────────────────────
   // Processing
