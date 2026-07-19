@@ -11,11 +11,11 @@ def generate_pdf_report(title: str, summary: str, action_items: list[str], full_
     Returns the file path of the saved PDF.
     """
     # Ensure the reports directory exists
-    os.makedirs(settings.REPORTS_DIR, exist_ok=True)
+    os.makedirs(settings.REPORT_DIR, exist_ok=True)
     
     # Generate a unique filename
     filename = f"Meeting_Report_{uuid.uuid4().hex[:8]}.pdf"
-    file_path = os.path.join(settings.REPORTS_DIR, filename)
+    file_path = os.path.join(settings.REPORT_DIR, filename)
     
     # Setup the PDF document
     doc = SimpleDocTemplate(file_path, pagesize=letter)

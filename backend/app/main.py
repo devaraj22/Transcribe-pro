@@ -23,8 +23,24 @@ async def lifespan(app: FastAPI):
         print("✅ HF_TOKEN is configured for diarization.")
     else:
         print("⚠️ HF_TOKEN is not configured; diarization may be unavailable.")
-        
-    print("🟢 Startup complete. Models will load on demand when a transcription request begins.")
+
+    # Warm the transcription model now, at startup, rather than lazily on the
+    # first request. Quick Capture runs synchronously inside the HTTP
+    # request/response cycle — if the first request also has to pay for
+    # downloading + loading the Whisper/VAD/alignment models, that can easily
+    # exceed a reverse-proxy's request timeout (e.g. Lightning AI Studio's
+    # public URL proxy), producing a bare 502 even though the backend itself
+    # is healthy and still working. Loading here means that cost is paid once,
+    # during startup, before any request is accepted.
+    try:
+        from backend.services.whisper_service import get_transcriber
+        print("⏳ Warming transcription model (this may take a while on first run)...")
+        get_transcriber()
+        print("✅ Transcription model warmed and ready.")
+    except Exception as exc:
+        print(f"⚠️ Model warm-up failed, will retry lazily on first request: {exc}")
+
+    print("🟢 Startup complete.")
 
     yield  # Server is now running and accepting requests
 

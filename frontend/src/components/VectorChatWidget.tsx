@@ -105,10 +105,10 @@ export const VectorChatWidget: React.FC<VectorChatWidgetProps> = ({ jobId }) => 
         { id: Date.now() + 1, text: aiText, sender: 'ai', sources },
       ]);
     } catch (error: any) {
-      const errText =
-        error?.message?.includes('404')
-          ? 'The transcript index is not available yet. Please wait a moment and try again.'
-          : 'Unable to reach the RAG engine. Please check that the backend is running.';
+      const rawMessage = error?.message ? String(error.message) : '';
+      const errText = rawMessage
+        ? `Something went wrong: ${rawMessage}`
+        : 'Unable to reach the RAG engine. Please check that the backend is running.';
       setMessages((prev) => [
         ...prev,
         { id: Date.now() + 1, text: errText, sender: 'ai', isError: true },

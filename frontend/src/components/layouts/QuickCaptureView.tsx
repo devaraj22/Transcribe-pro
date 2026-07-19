@@ -63,7 +63,7 @@ export const QuickCaptureView: React.FC = () => {
     }
 
     if (pollStatus === 'error') {
-      setError('Background job failed while processing the recording.');
+      setError(pollError || 'Background job failed while processing the recording.');
       setProcessing(false);
       setJobId(null);
     }
@@ -92,7 +92,7 @@ export const QuickCaptureView: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      setError('Short capture processing failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Short capture processing failed. Please try again.');
       setProcessing(false);
       setJobId(null);
     }

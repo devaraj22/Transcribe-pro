@@ -16,11 +16,14 @@ ffmpeg-python==0.2.0            # Extracts audio tracks from video files
 # ==========================================
 # 🧠 AI Engines (WhisperX + faster-whisper)
 # ==========================================
-whisperx                        # WhisperX transcription, alignment, and diarization
+whisperx==3.3.1                 # WhisperX transcription, alignment, and diarization
+                                 # NOTE: pinned — whisperx>=3.8 requires pyannote-audio>=4.0.0,
+                                 # which conflicts with pyannote.audio==3.3.2 below and breaks
+                                 # VAD/diarization with "Could not import module 'Pipeline'".
 faster-whisper                  # Low-VRAM sequential decode backend (alternative to WhisperX)
 transformers                    # Model utilities required by WhisperX
 sentencepiece                   # Tokenizer support for WhisperX
-torch==2.5.1                    # Machine learning backend required by WhisperX / Pyannote
+torch                   # Machine learning backend required by WhisperX / Pyannote
 torchaudio==2.5.1               # Audio tensor processing
 pyannote.audio==3.3.2           # Speaker diarization (separating Speaker 1 vs Speaker 2)
 

@@ -26,7 +26,7 @@ The output segments have the schema::
 from __future__ import annotations
 
 import gc
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import torch
 import whisperx
@@ -37,6 +37,7 @@ from backend.services.whisper_service import (
     get_transcriber,
     get_aligner,
     get_diarizer,
+    get_diarizer_status,
     release_transcriber,
     release_aligner,
     release_diarizer,
@@ -267,12 +268,25 @@ def run_meeting_mode(job_id: str, audio_path: str, language_mode: str = "automat
     print("⏳ [3/4] Running speaker diarization...")
     diarizer = get_diarizer()
     diarization_result = None
+    diarization_note: Optional[str] = None
 
-    if diarizer is not None:
+    if diarizer is None:
+        _status = get_diarizer_status()
+        diarization_note = {
+            "disabled": "Speaker diarization is disabled on this server (ENABLE_DIARIZATION=False).",
+            "no_token": "Speaker diarization requires a Hugging Face token (HF_TOKEN) that isn't configured on this server.",
+        }.get(_status, f"Speaker diarization is unavailable: {_status}")
+    else:
         try:
             diarization_result = diarizer(audio_path)
+            if diarization_result is None:
+                # diarizer exists but its underlying pipeline failed to load
+                _status = get_diarizer_status()
+                if _status.startswith("load_failed:"):
+                    diarization_note = f"Speaker diarization failed to load: {_status.split(':', 1)[1]}"
         except Exception as exc:
             print(f"⚠️ Diarization skipped: {exc}")
+            diarization_note = f"Speaker diarization failed while processing this recording: {exc}"
 
     update_job_status(job_id, progress=80.0)
     release_diarizer()
@@ -285,7 +299,12 @@ def run_meeting_mode(job_id: str, audio_path: str, language_mode: str = "automat
 
     if diarization_result is not None:
         try:
-            word_level = whisperx.assign_word_speakers(diarization_result, aligned_result)
+            # whisperx.assign_word_speakers()'s declared type expects its own
+            # precise AlignedTranscriptionResult/TranscriptionResult TypedDict;
+            # aligned_result is a structurally compatible plain dict, so we
+            # go through Any at this boundary (same pattern as whisper_service
+            # .py's _align_segments) rather than fighting the type checker.
+            word_level = whisperx.assign_word_speakers(diarization_result, cast(Any, aligned_result))
             # assign_word_speakers returns a dict with "segments" containing word dicts
             all_words: List[Dict] = []
             for seg in word_level.get("segments", []):
@@ -294,6 +313,7 @@ def run_meeting_mode(job_id: str, audio_path: str, language_mode: str = "automat
             segments = _group_words_into_turns(all_words, detected_language)
         except Exception as exc:
             print(f"⚠️ Speaker assignment failed, falling back to unlabelled segments: {exc}")
+            diarization_note = f"Speaker assignment failed: {exc}"
             segments = _fallback_segments(aligned_result, detected_language)
     else:
         print("ℹ️ No diarization result — producing unlabelled segments.")
@@ -307,6 +327,7 @@ def run_meeting_mode(job_id: str, audio_path: str, language_mode: str = "automat
     result = {
         "full_text": "\n".join(full_text_parts),
         "segments": segments,
+        "diarization_note": diarization_note,  # None when diarization succeeded normally
     }
 
     update_job_status(job_id, progress=100.0)

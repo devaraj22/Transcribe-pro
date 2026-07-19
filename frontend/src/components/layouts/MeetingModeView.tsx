@@ -16,6 +16,7 @@ export const MeetingModeView: React.FC = () => {
   const [summary, setSummary] = useState<string>('');
   const [actionItems, setActionItems] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [diarizationNote, setDiarizationNote] = useState<string | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
   const { status: pollStatus, progress, data: pollData, error: pollError } = useJobPolling(
@@ -31,12 +32,13 @@ export const MeetingModeView: React.FC = () => {
         full_text: pollData.full_text,
         segments: pollData.segments,
       });
+      setDiarizationNote(pollData.diarization_note || null);
       setProcessing(false);
       setError(null);
     }
 
     if (pollStatus === 'error') {
-      setError('Meeting processing failed. Please try again or upload a smaller file.');
+      setError(pollError || 'Meeting processing failed. Please try again or upload a smaller file.');
       setProcessing(false);
       setJobId(null);
     }
@@ -54,27 +56,37 @@ export const MeetingModeView: React.FC = () => {
     }
 
     const enrich = async () => {
-      try {
-        const [summaryResponse, actionsResponse] = await Promise.all([
-          ApiClient.summarizeText(jobResult.full_text || ''),
-          ApiClient.extractActionItems(jobResult.full_text || ''),
-        ]);
-        setSummary(summaryResponse.summary || 'No summary available.');
-        setActionItems(actionsResponse.action_items || []);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        console.error('Enhancement fetch failed', err);
-        
-        // Display error to user
-        if (errorMessage.includes('503') || errorMessage.includes('Ollama')) {
-          setError('AI enhancement unavailable: Please ensure Ollama is running on localhost:11434 with qwen3:8b model.');
-        } else {
-          setError(`Enhancement failed: ${errorMessage}`);
-        }
-        
-        // Still show placeholder text
-        setSummary('Unable to generate summary. Please check if Ollama service is running.');
+      const [summaryResult, actionsResult] = await Promise.allSettled([
+        ApiClient.summarizeText(jobResult.full_text || ''),
+        ApiClient.extractActionItems(jobResult.full_text || ''),
+      ]);
+
+      const errors: string[] = [];
+
+      if (summaryResult.status === 'fulfilled') {
+        setSummary(summaryResult.value.summary || 'No summary available.');
+      } else {
+        const msg = summaryResult.reason instanceof Error
+          ? summaryResult.reason.message
+          : String(summaryResult.reason);
+        console.error('Summary generation failed', summaryResult.reason);
+        setSummary(`Summary unavailable: ${msg}`);
+        errors.push(msg);
+      }
+
+      if (actionsResult.status === 'fulfilled') {
+        setActionItems(actionsResult.value.action_items || []);
+      } else {
+        const msg = actionsResult.reason instanceof Error
+          ? actionsResult.reason.message
+          : String(actionsResult.reason);
+        console.error('Action item extraction failed', actionsResult.reason);
         setActionItems([]);
+        errors.push(msg);
+      }
+
+      if (errors.length > 0) {
+        setError(`AI enhancement issue: ${errors[0]}`);
       }
     };
 
@@ -98,7 +110,7 @@ export const MeetingModeView: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      setError('Meeting mode upload failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Meeting mode upload failed. Please try again.');
       setProcessing(false);
       setJobId(null);
     }
@@ -224,6 +236,11 @@ export const MeetingModeView: React.FC = () => {
             </div>
             {processing && <ProgressBar progress={progress || 20} label="Meeting processing in progress" />}
             {error && <div style={{ color: '#dc2626', fontWeight: 600, marginTop: '12px' }}>{error}</div>}
+            {!processing && diarizationNote && (
+              <div style={{ color: '#d97706', fontSize: '13px', marginTop: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: 'rgba(217, 119, 6, 0.1)', border: '1px solid rgba(217, 119, 6, 0.3)' }}>
+                ⚠️ Speaker labels unavailable: {diarizationNote}
+              </div>
+            )}
             <TranscriptEditor fullText={jobResult?.full_text} segments={jobResult?.segments} loading={processing} jobId={jobId ?? undefined} />
           </div>
 

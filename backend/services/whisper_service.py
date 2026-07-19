@@ -15,17 +15,125 @@ Responsibilities:
 
 from __future__ import annotations
 
+import os
 import gc
 import re
 import textwrap
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
+
+
+def _preload_nvidia_libraries() -> None:
+    """
+    torch pulls in NVIDIA's CUDA/cuDNN shared libraries as pip packages
+    (nvidia-cudnn-cu12, nvidia-cublas-cu12, etc.), but other libraries that
+    also need them at runtime — like ctranslate2, which WhisperX's GPU
+    decode path uses — don't know where to find them, and fail with errors
+    like "Could not load library libcudnn_ops_infer.so.8" even though the
+    .so file is sitting right there on disk.
+
+    NOTE: setting os.environ["LD_LIBRARY_PATH"] does NOT fix this once the
+    process has already started — ld.so reads that variable once, at
+    process launch, not on every dlopen() call afterward. The actual fix is
+    to directly preload each .so file with ctypes.CDLL(..., RTLD_GLOBAL),
+    the same technique torch itself uses internally for its own CUDA deps.
+    Once a library is loaded globally this way, any other library's later
+    dlopen() request for that same filename resolves to the already-loaded
+    copy instead of needing to search a path at all.
+    """
+    import ctypes
+    import importlib.util
+
+    candidate_packages = [
+        "nvidia.cudnn.lib",
+        "nvidia.cublas.lib",
+        "nvidia.cuda_runtime.lib",
+        "nvidia.cufft.lib",
+        "nvidia.curand.lib",
+        "nvidia.cusparse.lib",
+        "nvidia.cusolver.lib",
+        "nvidia.nvjitlink.lib",
+    ]
+    lib_dirs: list[str] = []
+    for pkg in candidate_packages:
+        try:
+            spec = importlib.util.find_spec(pkg)
+        except (ImportError, ModuleNotFoundError, ValueError):
+            continue
+        if spec and spec.submodule_search_locations:
+            lib_dirs.extend(spec.submodule_search_locations)
+
+    if not lib_dirs:
+        print("⚠️ No bundled NVIDIA library directories found (nvidia-cudnn-cu12 etc. not installed).")
+        return
+
+    so_files: list[str] = []
+    for d in lib_dirs:
+        try:
+            so_files.extend(str(p) for p in Path(d).glob("*.so*"))
+        except OSError:
+            continue
+
+    # Load order matters — dependency libraries (cudart, cublas) generally
+    # need to be resident before things that link against them (cudnn).
+    # Two passes: try everything once, then retry failures once more in
+    # case ordering fixed itself after the first pass loaded a dependency.
+    failed: list[str] = []
+    loaded_count = 0
+    for so_path in so_files:
+        try:
+            ctypes.CDLL(so_path, mode=ctypes.RTLD_GLOBAL)
+            loaded_count += 1
+        except OSError:
+            failed.append(so_path)
+
+    for so_path in failed[:]:
+        try:
+            ctypes.CDLL(so_path, mode=ctypes.RTLD_GLOBAL)
+            loaded_count += 1
+            failed.remove(so_path)
+        except OSError:
+            pass
+
+    print(f"✅ Preloaded {loaded_count}/{len(so_files)} NVIDIA shared libraries.")
+    if failed:
+        print(f"⚠️ Could not preload (may be harmless if unused): {[Path(f).name for f in failed]}")
+
+
+try:
+    _preload_nvidia_libraries()
+except Exception as exc:
+    print(f"⚠️ NVIDIA library preload failed (non-fatal): {exc}")
 
 import torch
 import whisperx
 
 from backend.app.core.config import settings
+
+# ---------------------------------------------------------------------------
+# PyTorch 2.6 compatibility shim
+# ---------------------------------------------------------------------------
+# PyTorch 2.6 flipped torch.load's default from weights_only=False to True,
+# which now refuses to unpickle config objects (e.g. omegaconf.ListConfig)
+# that official pyannote/WhisperX checkpoints legitimately contain — raising
+# "Weights only load failed ... Unsupported global: GLOBAL omegaconf...".
+#
+# We restore the pre-2.6 default (weights_only=False) specifically for the
+# torch.load calls WhisperX/pyannote make internally when loading their own
+# models. This is safe here because those checkpoints come from the official,
+# trusted pyannote/WhisperX Hugging Face repos configured via settings — not
+# from arbitrary/user-supplied files. Do not apply this pattern to files of
+# unknown provenance.
+_torch_load_original = torch.load
+
+
+def _torch_load_default_unsafe(*args: Any, **kwargs: Any) -> Any:
+    kwargs.setdefault("weights_only", False)
+    return _torch_load_original(*args, **kwargs)
+
+
+torch.load = _torch_load_default_unsafe  # type: ignore[assignment]
 
 # ---------------------------------------------------------------------------
 # Module-level singleton state
@@ -301,15 +409,13 @@ class WhisperXAdapter:
         if beam_size is not None:
             options["beam_size"] = beam_size
 
-        # VAD configuration
-        effective_vad = vad_method or settings.VAD_METHOD
-        if effective_vad and effective_vad.lower() not in {"none", "off", ""}:
-            options["vad_filter"] = True
-            if effective_vad.lower() == "silero":
-                options["vad_method"] = "silero"
-            # "pyannote" VAD is WhisperX's default when vad_filter=True
-
-        result = self._model.transcribe(audio, **options)
+        # NOTE: whisperx==3.3.1's FasterWhisperPipeline.transcribe() does NOT
+        # accept vad_filter / vad_method — VAD is configured once at
+        # load_model() time (see get_whisperx_model) and always runs
+        # internally. Passing those kwargs here raises TypeError. If you
+        # upgrade whisperx to a version with a different transcribe() API,
+        # revisit this.
+        result = self._transcribe_safely(audio, options)
 
         # Use the *detected* language (not user hint) so the aligner is correct
         detected_language = result.get("language") or language or settings.DEFAULT_LANGUAGE or "en"
@@ -328,25 +434,35 @@ class WhisperXAdapter:
         info = SimpleNamespace(language=detected_language)
         return segments, info
 
+    def _transcribe_safely(self, audio: Any, options: Dict[str, Any]) -> Any:
+        """Run ``self._model.transcribe`` and surface a clear error on failure."""
+        try:
+            return self._model.transcribe(audio, **options)
+        except Exception as exc:
+            raise RuntimeError(f"WhisperX transcription failed: {exc}") from exc
+
     def _align_segments(
         self,
         audio: Any,
-        raw_segments: List[Dict],
+        raw_segments: List[Dict[str, Any]],
         language_code: Optional[str],
-    ) -> List[Dict]:
+    ) -> List[Dict[str, Any]]:
         align_model, metadata = _load_alignment_model(language_code)
         if align_model is None or metadata is None:
             return raw_segments
         try:
-            aligned = whisperx.align(
-                raw_segments,
+            # whisperx.align()'s declared types (SingleSegment / AlignedTranscriptionResult)
+            # are precise TypedDicts; our segments are structurally compatible plain dicts,
+            # so we go through Any at this boundary rather than fighting the type checker.
+            aligned: Any = whisperx.align(
+                cast(Any, raw_segments),
                 align_model,
                 metadata,
                 audio,
                 DEVICE,
                 return_char_alignments=False,
             )
-            return aligned.get("segments", raw_segments)
+            return cast(List[Dict[str, Any]], aligned.get("segments", raw_segments))
         except Exception as exc:
             print(f"⚠️ Alignment failed for '{language_code}': {exc}")
             return raw_segments
@@ -433,15 +549,16 @@ class WhisperXAligner:
             return {"segments": raw_segments}
 
         try:
-            aligned = whisperx.align(
-                raw_segments,
+            # See _align_segments above re: TypedDict vs plain dict at this boundary.
+            aligned: Any = whisperx.align(
+                cast(Any, raw_segments),
                 align_model,
                 metadata,
                 audio,
                 DEVICE,
                 return_char_alignments=False,
             )
-            return aligned
+            return cast(Dict[str, Any], aligned)
         except Exception as exc:
             print(f"⚠️ Alignment failed for '{detected_language}': {exc}")
             return {"segments": raw_segments}
@@ -524,14 +641,24 @@ def get_aligner() -> WhisperXAligner:
     return _aligner
 
 
+_diarizer_status: str = "not_loaded"  # not_loaded | disabled | no_token | load_failed:<reason> | ready
+
+
+def get_diarizer_status() -> str:
+    """Human-readable reason diarization is (or isn't) available, for surfacing to the UI."""
+    return _diarizer_status
+
+
 def get_diarizer() -> Optional[WhisperXDiarizer]:
-    global _diarizer
+    global _diarizer, _diarizer_status
     if _diarizer is None:
         if not settings.ENABLE_DIARIZATION:
             print("ℹ️ Diarization is disabled via ENABLE_DIARIZATION=False.")
+            _diarizer_status = "disabled"
             return None
         if not settings.HF_TOKEN:
             print("⚠️ HF_TOKEN not configured; speaker diarization will be skipped.")
+            _diarizer_status = "no_token"
             return None
         try:
             from pyannote.audio import Pipeline
@@ -539,14 +666,16 @@ def get_diarizer() -> Optional[WhisperXDiarizer]:
             print("⏳ Loading Pyannote diarization pipeline...")
             pipeline = Pipeline.from_pretrained(
                 settings.DIARIZATION_MODEL,
-                token=settings.HF_TOKEN or None,
+                use_auth_token=settings.HF_TOKEN or None,
             )
             if torch.cuda.is_available():
                 pipeline.to(torch.device("cuda"))
             _diarizer = WhisperXDiarizer(pipeline)
+            _diarizer_status = "ready"
             print("✅ Pyannote diarization pipeline loaded.")
         except Exception as exc:
             print(f"❌ Failed to load Pyannote pipeline: {exc}")
+            _diarizer_status = f"load_failed:{exc}"
             _diarizer = WhisperXDiarizer(None)
     return _diarizer
 

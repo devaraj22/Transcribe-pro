@@ -28,6 +28,10 @@ export function useJobPolling(
         setProgress(response.progress ?? 0);
         setData(response.data ?? null);
 
+        if (response.status === 'error' && response.error) {
+          setError(String(response.error));
+        }
+
         if (response.status === 'complete' || response.status === 'error') {
           window.clearInterval(intervalHandle);
         }

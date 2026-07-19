@@ -1,3 +1,13 @@
+# pyright: reportAttributeAccessIssue=false
+#
+# This file builds fake modules with `types.ModuleType(...)` and assigns
+# arbitrary attributes onto them so heavyweight real dependencies (fastapi,
+# whisperx, faiss, etc.) don't need to be installed just to import and test
+# the status endpoint in isolation. Pyright can't statically verify dynamic
+# attribute assignment on ModuleType, but the pattern is intentional and
+# correct at runtime — hence the blanket suppression above rather than
+# per-line `# type: ignore` comments on every stub assignment.
+
 import sys
 import types
 
@@ -45,7 +55,12 @@ sys.modules.setdefault("backend.services.ffmpeg_service", ffmpeg_stub)
 
 background_worker_stub = types.ModuleType("backend.services.background_worker")
 background_worker_stub.process_meeting_async = lambda *args, **kwargs: None
+background_worker_stub.process_quick_capture_async = lambda *args, **kwargs: None
 sys.modules.setdefault("backend.services.background_worker", background_worker_stub)
+
+faiss_service_stub = types.ModuleType("backend.services.faiss_service")
+faiss_service_stub.create_vector_index = lambda *args, **kwargs: None
+sys.modules.setdefault("backend.services.faiss_service", faiss_service_stub)
 
 from backend.app.api.v1.endpoints.process import check_job_status
 from backend.app.modules.meeting_mode import background_jobs
