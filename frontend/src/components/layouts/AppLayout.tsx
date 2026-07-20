@@ -53,18 +53,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
           </nav>
         </div>
 
-        <div className="sidebar-footer">
-          <div className="meta-row">
-            <span>LLM Target:</span>
-            <span className="meta-val">qwen3:8b</span>
-          </div>
-          <div className="meta-row">
-            <span>Status:</span>
-            <div className="status-badge">
-              <span className="status-dot"></span> Online
-            </div>
-          </div>
-        </div>
       </aside>
 
       <main className="main-wrapper">
@@ -72,12 +60,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
           <div className="breadcrumb">
             <span className="breadcrumb-label">Workspace /</span>
             <span className="breadcrumb-current">{activeTab} view</span>
-          </div>
-          <div className="header-actions">
-            <span className="status-pill">
-              <span className="status-dot"></span> Engine Live
-            </span>
-            <div className="engine-tag">Version 1.0.0-PRO</div>
           </div>
         </header>
 

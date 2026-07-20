@@ -45,42 +45,6 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ value, onCha
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// VAD Method Selector
-// ─────────────────────────────────────────────────────────────────────────────
-interface VadSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
-}
-
-const VAD_OPTIONS = [
-  { label: 'Pyannote VAD (default, best accuracy)', value: 'pyannote' },
-  { label: 'Silero VAD (faster, no HF token)', value: 'silero' },
-  { label: 'None (no voice activity filtering)', value: 'none' },
-];
-
-export const VadSelector: React.FC<VadSelectorProps> = ({ value, onChange }) => (
-  <label style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-    <span style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '14px' }}>
-      VAD Method
-    </span>
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={selectStyle}
-    >
-      {VAD_OPTIONS.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
-    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-      Voice Activity Detection filters non-speech audio before transcription.
-    </span>
-  </label>
-);
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Shared styles
 // ─────────────────────────────────────────────────────────────────────────────
 const selectStyle: React.CSSProperties = {

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { LanguageSelector, VadSelector } from '../forms/LanguageSelector';
 import { FileUploader } from '../forms/FileUploader';
 import { TranscriptEditor } from '../TranscriptEditor';
 import { VectorChatWidget } from '../VectorChatWidget';
@@ -8,8 +7,7 @@ import { ApiClient } from '../../services/apiClient';
 import { useJobPolling } from '../../hooks/useJobPolling';
 
 export const MeetingModeView: React.FC = () => {
-  const [languageMode, setLanguageMode] = useState('automatic');
-  const [vadMethod, setVadMethod] = useState('pyannote');
+  const languageMode = 'automatic';
   const [jobId, setJobId] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [jobResult, setJobResult] = useState<{ full_text?: string; segments?: any[] } | null>(null);
@@ -160,15 +158,6 @@ export const MeetingModeView: React.FC = () => {
                 Upload audio or video and let VoiceScribe run the unified meeting pipeline.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '18px' }}>
-              <div style={{ flex: 1 }}>
-                <LanguageSelector value={languageMode} onChange={setLanguageMode} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <VadSelector value={vadMethod} onChange={setVadMethod} />
-              </div>
-            </div>
-
             <FileUploader
               acceptedTypes="audio/mp3, audio/wav, audio/m4a, video/mp4, video/webm, video/quicktime"
               label="Upload meeting audio or video"

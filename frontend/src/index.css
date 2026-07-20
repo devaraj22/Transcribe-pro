@@ -33,13 +33,13 @@ body {
 /* Sidebar */
 .sidebar {
   width: 280px;
-  background-color: var(--bg-surface);
-  border-right: 1px solid var(--border-color);
+  background: linear-gradient(180deg, #1d4ed8, #2563eb);
+  border-right: none;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 24px 16px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 14px 40px rgba(37, 99, 235, 0.22);
   z-index: 10;
 }
 
@@ -65,12 +65,12 @@ body {
 .logo-text h1 {
   font-size: 16px;
   font-weight: 700;
-  color: var(--text-main);
+  color: #ffffff;
 }
 
 .logo-text p {
   font-size: 11px;
-  color: var(--accent);
+  color: rgba(255, 255, 255, 0.75);
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: 600;
@@ -92,7 +92,7 @@ body {
   background: transparent;
   border: none;
   border-radius: 8px;
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.75);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -101,14 +101,14 @@ body {
 }
 
 .nav-btn:hover {
-  background-color: var(--bg-main);
-  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
 .nav-btn.active {
-  background-color: var(--accent-light);
-  color: var(--accent);
-  border-left: 4px solid var(--accent); /* Corporate left-border highlight */
+  background-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border-left: 4px solid #ffffff;
   border-radius: 4px 8px 8px 4px;
 }
 

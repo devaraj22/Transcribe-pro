@@ -23,7 +23,19 @@ whisperx==3.3.1                 # WhisperX transcription, alignment, and diariza
 faster-whisper                  # Low-VRAM sequential decode backend (alternative to WhisperX)
 transformers                    # Model utilities required by WhisperX
 sentencepiece                   # Tokenizer support for WhisperX
-torch                   # Machine learning backend required by WhisperX / Pyannote
+torch==2.5.1                    # Machine learning backend required by WhisperX / Pyannote
+nvidia-cudnn-cu12==8.9.7.29      # PINNED: ctranslate2 (WhisperX's GPU backend) needs the cuDNN 8.x
+                                 # ABI specifically (libcudnn_ops_infer.so.8 etc). torch's own default
+                                 # dependency resolution pulls cuDNN 9.x instead, which is missing that
+                                 # exact file and breaks GPU transcription with:
+                                 #   "Could not load library libcudnn_ops_infer.so.8"
+                                 # This line MUST come after torch in this file so pip installs torch's
+                                 # deps first, then overrides cudnn to this specific version.
+llama-cpp-python>=0.3.0         # In-process GGUF inference for Summary/Action Items/RAG (replaces Ollama)
+                                 # NOTE: `pip install` builds a CPU-only binary by default. When you move
+                                 # to a GPU box, reinstall with CUDA support instead, e.g.:
+                                 #   CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
+                                 # then set LOCAL_LLM_GPU_LAYERS=-1 in .env (no code change needed).
 torchaudio==2.5.1               # Audio tensor processing
 pyannote.audio==3.3.2           # Speaker diarization (separating Speaker 1 vs Speaker 2)
 

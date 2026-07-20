@@ -27,9 +27,11 @@ async def summarize_text(request: EnhanceRequest):
         summary_text, is_error = await generate_summary(request.text)
 
         if is_error:
-            return {
-                "summary": "The AI summary service is currently unavailable. Please try again once Ollama has finished loading the model."
-            }
+            # summary_text already contains the real, specific reason
+            # (e.g. "Ollama is not running..." or a timeout/HTTP error) —
+            # surface it instead of a generic message so users can actually
+            # act on it.
+            raise HTTPException(status_code=503, detail=summary_text)
 
         return {"summary": summary_text}
     except HTTPException:
@@ -43,12 +45,11 @@ async def get_action_items(request: EnhanceRequest):
     Takes a raw transcript and extracts a bulleted list of tasks/action items.
     """
     try:
-        items, is_error = await extract_action_items(request.text)
-        
+        items, is_error, error_detail = await extract_action_items(request.text)
+
         if is_error:
-            # Return error message wrapped in action items list
-            raise HTTPException(status_code=503, detail="Unable to extract action items. Ollama service may not be available.")
-        
+            raise HTTPException(status_code=503, detail=error_detail)
+
         return {"action_items": items}
     except HTTPException:
         raise

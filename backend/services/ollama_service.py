@@ -187,7 +187,7 @@ async def generate_summary(text: str) -> tuple[str, bool]:
         "Focus on key decisions, topics discussed, and outcomes."
     )
     prompt = f"Meeting transcript:\n\n{truncated}\n\nProvide a concise summary:"
-    return await _call_ollama(prompt, system_prompt=system, num_predict=300)
+    return await _call_ollama(prompt, system_prompt=system, num_predict=300, timeout=180.0)
 
 
 async def extract_action_items(text: str) -> tuple[list[str], bool, str]:
@@ -217,7 +217,7 @@ async def extract_action_items(text: str) -> tuple[list[str], bool, str]:
     )
     prompt = f"Meeting transcript:\n\n{truncated}\n\nAction items and key decisions (with due dates where mentioned):"
 
-    raw, is_error = await _call_ollama(prompt, system_prompt=system, num_predict=400)
+    raw, is_error = await _call_ollama(prompt, system_prompt=system, num_predict=400, timeout=180.0)
     if is_error:
         # raw already contains the real, specific reason from _call_ollama
         # (e.g. "Ollama is not running..."); don't discard it.
