@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
 
+
 # Import your LLM service functions (adjust the import path if needed)
 from backend.services.ollama_service import generate_summary, extract_action_items
 

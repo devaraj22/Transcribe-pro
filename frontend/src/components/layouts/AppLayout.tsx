@@ -1,5 +1,6 @@
 import React, { ReactNode, useState } from 'react';
 import { Cpu, Mic, Layers, History } from 'lucide-react';
+
 import { HistoryPanel } from '../ui/HistoryPanel';
 
 interface AppLayoutProps {
