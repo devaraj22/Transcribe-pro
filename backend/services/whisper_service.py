@@ -820,33 +820,33 @@ def transcribe_with_alignment(
     if manual_language:
         tx_options["language"] = manual_language
 
-    vad = settings.VAD_METHOD.lower()
-    if vad not in {"none", "off", ""}:
-        tx_options["vad_filter"] = True
-        if vad == "silero":
-            tx_options["vad_method"] = "silero"
-
+    # REMOVED: Do NOT pass vad_filter or vad_method to model.transcribe in WhisperX 3.3.1
     result = model.transcribe(audio, **tx_options)
+    raw_segments = result.get("segments", [])
     detected_language = result.get("language") or manual_language or settings.DEFAULT_LANGUAGE or "en"
 
     # -- Alignment -----------------------------------------------------------
     align_model, metadata = _load_alignment_model(detected_language)
-    if align_model is not None and metadata is not None:
+    aligned_segments = raw_segments
+
+    if align_model is not None and metadata is not None and raw_segments:
         try:
             aligned_result = whisperx.align(
-                result.get("segments", []),
+                raw_segments,
                 align_model,
                 metadata,
                 audio,
                 DEVICE,
                 return_char_alignments=False,
             )
-            aligned_segments = aligned_result.get("segments", result.get("segments", []))
+            aligned_segments = aligned_result.get("segments", raw_segments)
         except Exception as exc:
             print(f"⚠️ Alignment failed for '{detected_language}': {exc}")
-            aligned_segments = result.get("segments", [])
-    else:
-        aligned_segments = result.get("segments", [])
+            aligned_segments = raw_segments
+
+    # -- Fallback if alignment or VAD stripped out quiet audio ----------------
+    if not aligned_segments and raw_segments:
+        aligned_segments = raw_segments
 
     # -- Build output --------------------------------------------------------
     output: List[Dict] = []
@@ -859,25 +859,51 @@ def transcribe_with_alignment(
         else:
             sentences = [seg_text] if seg_text else []
 
-        # Distribute timing across sentences (proportional to character length)
         seg_start = float(seg.get("start", 0.0))
         seg_end = float(seg.get("end", 0.0))
-        total_chars = sum(len(s) for s in sentences) or 1
         current_time = seg_start
+        
+        # If words exist, we try exact alignment. Otherwise fallback to proportional.
+        total_chars = sum(len(s) for s in sentences) or 1
+        word_idx = 0
 
         for sentence in sentences:
-            frac = len(sentence) / total_chars
-            sent_end = current_time + (seg_end - seg_start) * frac
+            if words:
+                sent_words = []
+                # Remove punctuation/spaces for matching
+                sent_text_clean = re.sub(r'[^\w]', '', sentence).lower()
+                acc_text = ""
+                
+                while word_idx < len(words) and len(acc_text) < len(sent_text_clean):
+                    w = words[word_idx]
+                    sent_words.append(w)
+                    word_clean = re.sub(r'[^\w]', '', w.get("word", "")).lower()
+                    acc_text += word_clean
+                    word_idx += 1
+                
+                if sent_words:
+                    s_start = float(sent_words[0].get("start", current_time))
+                    s_end = float(sent_words[-1].get("end", seg_end))
+                else:
+                    s_start = current_time
+                    s_end = current_time + (seg_end - seg_start) * (len(sentence) / total_chars)
+            else:
+                # Proportional fallback (if alignment model dropped words)
+                frac = len(sentence) / total_chars
+                s_start = current_time
+                s_end = current_time + (seg_end - seg_start) * frac
+                sent_words = []
+                
             output.append(
                 {
-                    "start": round(current_time, 3),
-                    "end": round(sent_end, 3),
+                    "start": round(s_start, 3),
+                    "end": round(s_end, 3),
                     "speaker": "Speaker",
                     "language": detected_language,
                     "text": sentence,
-                    "words": words,  # shared; could be filtered per sentence in future
+                    "words": sent_words,
                 }
             )
-            current_time = sent_end
+            current_time = s_end
 
     return output
