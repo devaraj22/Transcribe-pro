@@ -31,6 +31,7 @@ def run_quick_capture(audio_path: str, language_mode: str = "automatic") -> Dict
           - ``segments``: list of segment dicts (start, end, language, speaker, text, words)
     """
     print(f"⚡ Quick Capture pipeline: {audio_path}")
+    
     transcriber = get_transcriber()
 
     language = None if language_mode.lower() == "automatic" else language_mode.lower()
