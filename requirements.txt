@@ -6,7 +6,7 @@ uvicorn[standard]==0.34.0
 python-multipart==0.0.20        # Required by FastAPI for accepting file uploads
 pydantic==2.10.4                # Data validation
 pydantic-settings==2.7.0        # Handles the config.py environment variables
-python-dotenv==1.0.1            # Loads .env files securely
+python-dotenv==1.2.2            # Loads .env files securely
 
 # ==========================================
 # 🎵 Media & Audio Processing
