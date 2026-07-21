@@ -57,3 +57,25 @@ def append_to_history(job_id: str, title: str, status: str = "complete"):
     except Exception as e:
         print(f"❌ Failed to write update to history.json: {e}")
         return False
+
+def update_history_title(job_id: str, new_title: str) -> bool:
+    """Finds a history item by job_id and updates its title."""
+    history = get_all_history()
+    updated = False
+    
+    for entry in history:
+        if entry["job_id"] == job_id:
+            entry["title"] = new_title
+            updated = True
+            break
+            
+    if updated:
+        try:
+            with open(HISTORY_FILE_PATH, "w", encoding="utf-8") as f:
+                json.dump(history, f, indent=4)
+            return True
+        except Exception as e:
+            print(f"❌ Failed to write updated title to history.json: {e}")
+            return False
+            
+    return False

@@ -59,7 +59,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children, activeTab, setAc
       <main className="main-wrapper">
         <header className="top-header">
           <div className="breadcrumb">
-            <span className="breadcrumb-label">Workspace /</span>
+            <span className="breadcrumb-label"></span>
             <span className="breadcrumb-current">{activeTab} view</span>
           </div>
         </header>

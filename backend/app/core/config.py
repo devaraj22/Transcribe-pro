@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    api_secret_key: str | None = None
     # ==========================================
     #  AI Engine & Model Configurations
     # ==========================================

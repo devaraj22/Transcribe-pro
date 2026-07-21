@@ -30,7 +30,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordedFile }) 
         <div>
           <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px' }}>Voice Note Recorder</h3>
           <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-            Record a short note and submit it to the shared VoiceScribe processing core.
+            
           </p>
         </div>
         <button
@@ -67,17 +67,11 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordedFile }) 
             backgroundColor: 'var(--bg-surface)',
           }}
         >
-          <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent)' }}>
-              {isRecording ? 'Recording in progress' : audioUrl ? 'Ready to review' : 'Awaiting input'}
-            </span>
+          <div style={{ marginBottom: '', display: '', alignItems: 'center', gap: '' }}>
+           
             {isRecording && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>• {duration}s</span>}
           </div>
-          <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>
-            {isRecording
-              ? 'Speak clearly into your microphone and stop when you are ready to submit.'
-              : 'Use the recorder to capture short personal notes and process them through the AI pipeline.'}
-          </p>
+         
         </div>
 
         {audioUrl && (
