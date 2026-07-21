@@ -129,11 +129,61 @@ _torch_load_original = torch.load
 
 
 def _torch_load_default_unsafe(*args: Any, **kwargs: Any) -> Any:
-    kwargs.setdefault("weights_only", False)
+    # Force, not just default — if a caller explicitly passes
+    # weights_only=True (some pytorch_lightning versions do exactly this,
+    # following PyTorch's own new recommended default), a plain
+    # kwargs.setdefault(...) has no effect since the key is already present.
+    kwargs["weights_only"] = False
     return _torch_load_original(*args, **kwargs)
 
 
 torch.load = _torch_load_default_unsafe  # type: ignore[assignment]
+
+# Belt-and-suspenders: the monkeypatch above only works if a library calls
+# `torch.load(...)` via attribute lookup at call time. If a library instead
+# does `from torch import load` (binding the original function directly),
+# reassigning torch.load afterwards has no effect on that already-bound
+# reference — this has been observed to vary between pytorch_lightning
+# versions. Allowlisting the specific classes these checkpoints use is a
+# second, independent layer that torch's unpickler consults regardless of
+# how torch.load was invoked or imported.
+try:
+    import collections
+    import typing
+
+    import omegaconf
+
+    _safe_globals = []
+    for _mod_name, _cls_names in [
+        ("omegaconf.listconfig", ["ListConfig"]),
+        ("omegaconf.dictconfig", ["DictConfig"]),
+        ("omegaconf.base", ["ContainerMetadata", "Metadata", "SCMode"]),
+        ("omegaconf.nodes", ["AnyNode", "ValueNode", "StringNode", "IntegerNode", "BooleanNode", "FloatNode"]),
+    ]:
+        try:
+            _mod = __import__(_mod_name, fromlist=_cls_names)
+            for _cls_name in _cls_names:
+                if hasattr(_mod, _cls_name):
+                    _safe_globals.append(getattr(_mod, _cls_name))
+        except ImportError:
+            continue
+
+    # Generic typing/collections objects these checkpoints have also been
+    # observed to reference (added incrementally as new "Unsupported global"
+    # errors surfaced during testing — torch.load's unpickler reports one
+    # missing class at a time, so this list may need further additions if
+    # a different checkpoint/library-version combination hits another one).
+    _safe_globals.extend([
+        typing.Any,
+        collections.OrderedDict,
+        collections.defaultdict,
+    ])
+
+    if _safe_globals and hasattr(torch.serialization, "add_safe_globals"):
+        torch.serialization.add_safe_globals(_safe_globals)
+        print(f"✅ Allowlisted {len(_safe_globals)} classes for torch.load.")
+except Exception as exc:
+    print(f"⚠️ Could not allowlist safe classes (non-fatal): {exc}")
 
 # ---------------------------------------------------------------------------
 # Module-level singleton state
@@ -820,33 +870,33 @@ def transcribe_with_alignment(
     if manual_language:
         tx_options["language"] = manual_language
 
-    # REMOVED: Do NOT pass vad_filter or vad_method to model.transcribe in WhisperX 3.3.1
+    vad = settings.VAD_METHOD.lower()
+    if vad not in {"none", "off", ""}:
+        tx_options["vad_filter"] = True
+        if vad == "silero":
+            tx_options["vad_method"] = "silero"
+
     result = model.transcribe(audio, **tx_options)
-    raw_segments = result.get("segments", [])
     detected_language = result.get("language") or manual_language or settings.DEFAULT_LANGUAGE or "en"
 
     # -- Alignment -----------------------------------------------------------
     align_model, metadata = _load_alignment_model(detected_language)
-    aligned_segments = raw_segments
-
-    if align_model is not None and metadata is not None and raw_segments:
+    if align_model is not None and metadata is not None:
         try:
             aligned_result = whisperx.align(
-                raw_segments,
+                result.get("segments", []),
                 align_model,
                 metadata,
                 audio,
                 DEVICE,
                 return_char_alignments=False,
             )
-            aligned_segments = aligned_result.get("segments", raw_segments)
+            aligned_segments = aligned_result.get("segments", result.get("segments", []))
         except Exception as exc:
             print(f"⚠️ Alignment failed for '{detected_language}': {exc}")
-            aligned_segments = raw_segments
-
-    # -- Fallback if alignment or VAD stripped out quiet audio ----------------
-    if not aligned_segments and raw_segments:
-        aligned_segments = raw_segments
+            aligned_segments = result.get("segments", [])
+    else:
+        aligned_segments = result.get("segments", [])
 
     # -- Build output --------------------------------------------------------
     output: List[Dict] = []
@@ -859,51 +909,25 @@ def transcribe_with_alignment(
         else:
             sentences = [seg_text] if seg_text else []
 
+        # Distribute timing across sentences (proportional to character length)
         seg_start = float(seg.get("start", 0.0))
         seg_end = float(seg.get("end", 0.0))
-        current_time = seg_start
-        
-        # If words exist, we try exact alignment. Otherwise fallback to proportional.
         total_chars = sum(len(s) for s in sentences) or 1
-        word_idx = 0
+        current_time = seg_start
 
         for sentence in sentences:
-            if words:
-                sent_words = []
-                # Remove punctuation/spaces for matching
-                sent_text_clean = re.sub(r'[^\w]', '', sentence).lower()
-                acc_text = ""
-                
-                while word_idx < len(words) and len(acc_text) < len(sent_text_clean):
-                    w = words[word_idx]
-                    sent_words.append(w)
-                    word_clean = re.sub(r'[^\w]', '', w.get("word", "")).lower()
-                    acc_text += word_clean
-                    word_idx += 1
-                
-                if sent_words:
-                    s_start = float(sent_words[0].get("start", current_time))
-                    s_end = float(sent_words[-1].get("end", seg_end))
-                else:
-                    s_start = current_time
-                    s_end = current_time + (seg_end - seg_start) * (len(sentence) / total_chars)
-            else:
-                # Proportional fallback (if alignment model dropped words)
-                frac = len(sentence) / total_chars
-                s_start = current_time
-                s_end = current_time + (seg_end - seg_start) * frac
-                sent_words = []
-                
+            frac = len(sentence) / total_chars
+            sent_end = current_time + (seg_end - seg_start) * frac
             output.append(
                 {
-                    "start": round(s_start, 3),
-                    "end": round(s_end, 3),
+                    "start": round(current_time, 3),
+                    "end": round(sent_end, 3),
                     "speaker": "Speaker",
                     "language": detected_language,
                     "text": sentence,
-                    "words": sent_words,
+                    "words": words,  # shared; could be filtered per sentence in future
                 }
             )
-            current_time = s_end
+            current_time = sent_end
 
     return output

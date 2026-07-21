@@ -20,6 +20,9 @@ whisperx==3.3.1                 # WhisperX transcription, alignment, and diariza
                                  # NOTE: pinned — whisperx>=3.8 requires pyannote-audio>=4.0.0,
                                  # which conflicts with pyannote.audio==3.3.2 below and breaks
                                  # VAD/diarization with "Could not import module 'Pipeline'".
+                                 # If `pip show whisperx` ever reports a version other than 3.3.1,
+                                 # something upgraded it outside this file — reinstall with:
+                                 #   pip install -r requirements.txt --force-reinstall --no-deps whisperx
 faster-whisper                  # Low-VRAM sequential decode backend (alternative to WhisperX)
 transformers                    # Model utilities required by WhisperX
 sentencepiece                   # Tokenizer support for WhisperX
@@ -53,6 +56,17 @@ sentence-transformers==2.3.1    # Embedding model loader for local RAG
 huggingface-hub==0.36.2         # Compatibility for sentence-transformers and transformers
 ollama==0.4.4                   # Python client to communicate with your local Qwen3:8B model
 numpy==1.26.4                   # Math operations for embedding vectors
+                                 # PINNED <2.0 to match whisperx==3.3.1 / pyannote.audio==3.3.2 above.
+                                 #
+                                 # ⚠️ DO NOT add `deepfilternet` to this file. DeepFilterNet's current
+                                 # release hard-requires numpy<2.0 in its own metadata, which sounds
+                                 # compatible with this pin — but `pip install deepfilternet` here has
+                                 # already been observed to downgrade numpy/scipy in ways that pulled in
+                                 # incompatible pyannote-core/pyannote-metrics versions requiring numpy>=2.0,
+                                 # silently breaking diarization. DeepFilterNet is installed in a SEPARATE,
+                                 # isolated virtualenv instead (see backend/services/denoiser_service.py
+                                 # and denoise_worker.py, which shell out to it via subprocess) so its
+                                 # dependency tree never touches this environment at all.
 
 # ==========================================
 # 📄 Document Generation

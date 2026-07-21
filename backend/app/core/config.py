@@ -23,19 +23,27 @@ class Settings(BaseSettings):
     # Master switch to enable/disable diarization (useful when HF_TOKEN is absent)
     ENABLE_DIARIZATION: bool = True
 
+    DENOISE_ENABLED: bool = True   # set False in .env to skip denoising
+
+    # Optional shared-secret access control. When set, every API request must
+    # include a matching X-API-Key header, or it's rejected — this blocks
+    # anyone who has your Studio's public URL but not this key. Leave empty
+    # to keep the API fully open (e.g. for local-only development).
+    API_SECRET_KEY: str = os.getenv("API_SECRET_KEY", "")
+
     # VAD method: "pyannote" (default), "silero" (lighter, no HF token needed), "none"
     VAD_METHOD: str = "pyannote"
 
-    # Local LLM Settings (in-process via llama-cpp-python — no external server
-    # process to crash or manage). Point LOCAL_LLM_MODEL_PATH at a GGUF quant
-    # of your model, e.g. a Qwen3-8B-Instruct Q4_K_M GGUF — or reuse the blob
-    # Ollama already downloaded (see find_ollama_gguf.sh).
+    # Local LLM Settings (in-process via llama-cpp-python — no external
+    # server process to crash or manage). Point LOCAL_LLM_MODEL_PATH at a
+    # GGUF quant of your model, e.g. a Qwen3-8B-Instruct Q4_K_M GGUF.
     LOCAL_LLM_MODEL_PATH: str = os.getenv("LOCAL_LLM_MODEL_PATH", "")
     LOCAL_LLM_CONTEXT_SIZE: int = int(os.getenv("LOCAL_LLM_CONTEXT_SIZE", "4096"))
     LOCAL_LLM_THREADS: int = int(os.getenv("LOCAL_LLM_THREADS", str(max(1, (os.cpu_count() or 4) - 1))))
     # 0 = CPU only (current default). When you move to a GPU box, set
     # LOCAL_LLM_GPU_LAYERS=-1 in .env to offload all layers to GPU — no code
-    # change needed. Requires llama-cpp-python installed with CUDA support.
+    # change needed. Requires llama-cpp-python to have been installed with
+    # CUDA support (see requirements.txt note) and a CUDA-capable GPU present.
     LOCAL_LLM_GPU_LAYERS: int = int(os.getenv("LOCAL_LLM_GPU_LAYERS", "0"))
 
     # ==========================================

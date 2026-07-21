@@ -157,10 +157,16 @@ async def _call_ollama(
 def _strip_think_tokens(text: str) -> str:
     """
     Remove <think>…</think> blocks emitted by Qwen3 and other reasoning models
-    so only the final answer is returned.
+    so only the final answer is returned. Also handles a truncated/unclosed
+    <think> block (generation cut off by max_tokens before the closing tag) —
+    without this, a truncated block left the raw literal "<think>" (with no
+    real answer after it) as the entire "result" text.
     """
     # Remove full <think>…</think> blocks (may span multiple lines)
     cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+    # If an unclosed <think> remains (generation was truncated mid-thought),
+    # drop everything from that point on — there's no real answer to salvage.
+    cleaned = re.sub(r"<think>.*$", "", cleaned, flags=re.DOTALL)
     return cleaned.strip()
 
 
@@ -186,8 +192,13 @@ async def generate_summary(text: str) -> tuple[str, bool]:
         "Produce a concise, accurate summary of the meeting transcript in 3-6 sentences. "
         "Focus on key decisions, topics discussed, and outcomes."
     )
-    prompt = f"Meeting transcript:\n\n{truncated}\n\nProvide a concise summary:"
-    return await _call_ollama(prompt, system_prompt=system, num_predict=300, timeout=180.0)
+    # "/no_think" tells Qwen3 to skip its <think>...</think> reasoning block
+    # and go straight to the answer — avoids burning the whole num_predict
+    # budget on hidden reasoning before any real output is produced.
+    prompt = f"Meeting transcript:\n\n{truncated}\n\nProvide a concise summary: /no_think"
+    # num_predict bumped 300 -> 600 as a safety margin in case /no_think is
+    # ignored by this particular GGUF build's chat template.
+    return await _call_ollama(prompt, system_prompt=system, num_predict=600, timeout=180.0)
 
 
 async def extract_action_items(text: str) -> tuple[list[str], bool, str]:
@@ -215,13 +226,25 @@ async def extract_action_items(text: str) -> tuple[list[str], bool, str]:
         "if no date was mentioned). "
         "Do not add any other text, headings, or introductions."
     )
-    prompt = f"Meeting transcript:\n\n{truncated}\n\nAction items and key decisions (with due dates where mentioned):"
+    prompt = f"Meeting transcript:\n\n{truncated}\n\nAction items and key decisions (with due dates where mentioned): /no_think"
 
-    raw, is_error = await _call_ollama(prompt, system_prompt=system, num_predict=400, timeout=180.0)
+    # num_predict bumped 400 -> 700, same rationale as generate_summary above.
+    raw, is_error = await _call_ollama(prompt, system_prompt=system, num_predict=700, timeout=180.0)
     if is_error:
         # raw already contains the real, specific reason from _call_ollama
         # (e.g. "Ollama is not running..."); don't discard it.
         return [], True, raw
+
+    if not raw:
+        # Generation completed but produced nothing usable — most likely an
+        # unclosed <think> block that _strip_think_tokens had to discard
+        # entirely. Surface a clear, actionable message instead of silently
+        # returning an empty action-items list.
+        return [], True, (
+            "The model's response was cut off before it produced an answer "
+            "(likely still 'thinking' when the token budget ran out). Try "
+            "increasing num_predict further or shortening the transcript."
+        )
 
     items: list[str] = []
     for line in raw.splitlines():

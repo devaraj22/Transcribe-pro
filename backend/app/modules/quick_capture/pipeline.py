@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from backend.services.denoiser_service import denoise_audio
+
 from backend.app.core.config import settings
 from backend.services.transcription_service import normalize_speaker_label
 from backend.services.whisper_service import get_transcriber
@@ -31,6 +33,8 @@ def run_quick_capture(audio_path: str, language_mode: str = "automatic") -> Dict
           - ``segments``: list of segment dicts (start, end, language, speaker, text, words)
     """
     print(f"⚡ Quick Capture pipeline: {audio_path}")
+
+    audio_path = denoise_audio(audio_path)
     
     transcriber = get_transcriber()
 

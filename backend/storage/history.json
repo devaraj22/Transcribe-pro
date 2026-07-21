@@ -1,5 +1,6 @@
 [
     {
+<<<<<<< HEAD
         "job_id": "17cccaad-b951-4329-92ee-be3317702bd1",
         "title": "audio.mp3",
         "status": "complete",
@@ -28,5 +29,35 @@
         "title": "audio.mp3",
         "status": "complete",
         "timestamp": "2026-07-20 15:38:20"
+=======
+        "job_id": "53a28549-fef9-4fd1-947e-66e3db7d0f50",
+        "title": "voice_capture_1784630785633.webm",
+        "status": "complete",
+        "timestamp": "2026-07-21 10:46:37"
+    },
+    {
+        "job_id": "1f34203c-6a45-4504-8c7e-6df4c73d3dce",
+        "title": "Meeting Audio Track Analysis",
+        "status": "complete",
+        "timestamp": "2026-07-21 10:41:58"
+    },
+    {
+        "job_id": "e6933923-e508-4f12-8a9a-7b0a765e446d",
+        "title": "testing.mp4",
+        "status": "complete",
+        "timestamp": "2026-07-21 10:25:28"
+    },
+    {
+        "job_id": "2a8a07dc-464d-4dd5-99f4-74dc4f428bb2",
+        "title": "Meeting Audio Track Analysis",
+        "status": "complete",
+        "timestamp": "2026-07-21 10:23:13"
+    },
+    {
+        "job_id": "be33b2af-df7e-4095-975e-d4fc3a862534",
+        "title": "testing.mp4",
+        "status": "complete",
+        "timestamp": "2026-07-21 10:08:59"
+>>>>>>> 495f837 (Add denoiser service and action item modification)
     }
 ]

@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional, cast
 
 import torch
 import whisperx
+from backend.services.denoiser_service import denoise_audio
 
 from backend.app.core.config import settings
 from backend.app.modules.meeting_mode.background_jobs import update_job_status
@@ -217,6 +218,8 @@ def run_meeting_mode(job_id: str, audio_path: str, language_mode: str = "automat
     """
     print(f"🚀 Meeting Mode pipeline started for job [{job_id}]: {audio_path}")
     update_job_status(job_id, status="processing", progress=5.0)
+
+    audio_path = denoise_audio(audio_path)
 
     language = None if language_mode.lower() == "automatic" else language_mode.lower()
 
