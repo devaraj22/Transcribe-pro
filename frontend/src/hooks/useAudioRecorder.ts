@@ -29,33 +29,60 @@ export function useAudioRecorder() {
     setAudioUrl(null);
     setDuration(0);
 
+    // 1. Secure-context check
+    if (!window.isSecureContext) {
+      setError(
+        `Microphone blocked: this page is not a secure context (${window.location.protocol}//${window.location.host}). Open the site over https:// or localhost.`
+      );
+      return;
+    }
+
+    // 2. API existence check
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError('Microphone API unavailable in this browser/context.');
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Explicit constraints to prevent silent/inaudible recordings on standard mics
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       streamRef.current = stream;
+      
       const recorder = new MediaRecorder(stream);
       audioChunksRef.current = [];
       mediaRecorderRef.current = recorder;
 
+      // Add listeners BEFORE starting the recorder
       recorder.addEventListener('dataavailable', (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       });
 
       recorder.addEventListener('stop', () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         setRecordedBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
       });
 
-      recorder.start();
+      // Start recorder with a 250ms timeslice to ensure continuous data flushing
+      recorder.start(250);
       setIsRecording(true);
 
       timerRef.current = window.setInterval(() => {
         setDuration((prev) => prev + 1);
       }, 1000);
     } catch (err) {
-      setError('Unable to access microphone. Please grant permission or try a supported browser.');
+      console.error('getUserMedia failed:', err);
+      const name = err instanceof Error ? err.name : 'UnknownError';
+      const message = err instanceof Error ? err.message : String(err);
+      setError(`Unable to access microphone (${name}): ${message}`);
     }
   };
 

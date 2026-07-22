@@ -30,18 +30,19 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordedFile }) 
         <div>
           <h3 style={{ margin: 0, color: 'var(--text-main)', fontSize: '20px' }}>Voice Note Recorder</h3>
           <p style={{ margin: '8px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-            
+            Record an audio clip for transcription.
           </p>
         </div>
         <button
+          type="button"
           onClick={isRecording ? stopRecording : startRecording}
           style={{
             width: '72px',
             height: '72px',
             borderRadius: '50%',
             border: 'none',
-            backgroundColor: isRecording ? '#fee2e2' : 'var(--accent-light)',
-            color: isRecording ? '#dc2626' : 'var(--accent)',
+            backgroundColor: isRecording ? '#fee2e2' : 'var(--accent-light, #e0f2fe)',
+            color: isRecording ? '#dc2626' : 'var(--accent, #0284c7)',
             boxShadow: 'var(--shadow-sm)',
             cursor: 'pointer',
             transition: 'all 0.25s ease',
@@ -67,11 +68,12 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordedFile }) 
             backgroundColor: 'var(--bg-surface)',
           }}
         >
-          <div style={{ marginBottom: '', display: '', alignItems: 'center', gap: '' }}>
-           
+          <div style={{ marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: isRecording ? '#dc2626' : 'var(--text-muted)' }}>
+              {isRecording ? '🔴 Recording...' : 'Click the microphone button to start recording'}
+            </span>
             {isRecording && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>• {duration}s</span>}
           </div>
-         
         </div>
 
         {audioUrl && (
@@ -88,7 +90,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordedFile }) 
               padding: '12px 22px',
               borderRadius: '12px',
               border: 'none',
-              backgroundColor: 'var(--accent)',
+              backgroundColor: 'var(--accent, #0284c7)',
               color: '#ffffff',
               fontWeight: 600,
               cursor: 'pointer',

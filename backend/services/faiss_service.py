@@ -103,7 +103,7 @@ def create_vector_index(job_id: str, transcript_text: str) -> bool:
     index = faiss.IndexFlatIP(dimension)
     
     try:
-        index.add(embeddings_array)
+        index.add(embeddings_array)  # type: ignore[call-arg]
     except Exception as e:
         print(f"❌ FAISS Critical Error: {e}")
         return False
