@@ -2,17 +2,12 @@
  * apiClient.ts
  * ============
  * Centralised HTTP client for the VoiceScribe AI backend.
- *
- * All methods throw on non-2xx responses so callers can catch and surface
- * errors in the UI. The base URL is read from the VITE_API_BASE_URL env var
- * so it works in both dev (localhost:8000) and production.
  */
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1'
 ).replace(/\/$/, '');
 
-// 🔍 Debugging line to verify the URL is loaded correctly in the browser console
 console.log('🔌 API Client Initialized. Targeting Backend URL:', API_BASE_URL);
 
 export const ApiClient = {
@@ -20,9 +15,15 @@ export const ApiClient = {
   // Processing
   // ─────────────────────────────────────────────────────────────────────────
 
-  async processMedia(file: File, languageMode: string = 'automatic'): Promise<any> {
+  async processMedia(file: File | Blob, languageMode: string = 'automatic'): Promise<any> {
     const formData = new FormData();
-    formData.append('file', file);
+
+    // Ensure audio recording Blobs get a valid filename with .wav extension
+    const fileName = (file as File).name && (file as File).name !== 'blob' 
+      ? (file as File).name 
+      : 'recording.wav';
+
+    formData.append('file', file, fileName);
     formData.append('language_mode', languageMode);
 
     const response = await fetch(`${API_BASE_URL}/process/`, {
@@ -50,7 +51,6 @@ export const ApiClient = {
   // ─────────────────────────────────────────────────────────────────────────
 
   downloadSubtitle(jobId: string, fmt: 'ass' | 'srt' = 'ass'): void {
-    /** Triggers a browser download for the subtitle file. No async needed. */
     const url = `${API_BASE_URL}/process/${jobId}/subtitle.${fmt}`;
     const a = document.createElement('a');
     a.href = url;
@@ -113,7 +113,7 @@ export const ApiClient = {
   },
 
   // ─────────────────────────────────────────────────────────────────────────
-  // AI Enhancement (Ollama)
+  // AI Enhancement
   // ─────────────────────────────────────────────────────────────────────────
 
   async summarizeText(text: string): Promise<any> {

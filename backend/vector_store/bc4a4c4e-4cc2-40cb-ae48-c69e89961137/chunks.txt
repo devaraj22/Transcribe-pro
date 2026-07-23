@@ -1,0 +1,1 @@
+Hello, capture and pause. Capture a clip, choose a language mode and submit a quick transcription. Voice would record an audio clip for transcription. Upload audio or video clip.

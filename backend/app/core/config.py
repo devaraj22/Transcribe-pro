@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     ENABLE_DIARIZATION: bool = True
 
     DENOISE_ENABLED: bool = True   # set False in .env to skip denoising
+    DENOISE_VENV_PYTHON: str | None = None  # Added to resolve Pydantic validation error
 
     # Optional shared-secret access control. When set, every API request must
     # include a matching X-API-Key header, or it's rejected — this blocks

@@ -13,6 +13,7 @@ __pycache__/
 
 # Environment variables
 .env
+frontend/.env.development
 
 # Build folders
 dist/

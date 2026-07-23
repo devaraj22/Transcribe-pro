@@ -13,11 +13,15 @@ export function useJobPolling(
 
   useEffect(() => {
     if (!jobId || !enabled) {
+      setStatus('idle');
+      setProgress(0);
+      setData(null);
+      setError(null);
       return;
     }
 
     let cancelled = false;
-    let intervalHandle: number;
+    let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
     const poll = async () => {
       try {
@@ -26,28 +30,31 @@ export function useJobPolling(
 
         setStatus(response.status || 'unknown');
         setProgress(response.progress ?? 0);
-        setData(response.data ?? null);
 
-        if (response.status === 'error' && response.error) {
-          setError(String(response.error));
+        if (response.data) {
+          setData(response.data);
         }
 
-        if (response.status === 'complete' || response.status === 'error') {
-          window.clearInterval(intervalHandle);
+        if (response.status === 'error') {
+          setError(response.error || 'Processing failed');
+          if (intervalHandle) clearInterval(intervalHandle);
+        } else if (response.status === 'complete') {
+          if (intervalHandle) clearInterval(intervalHandle);
         }
-      } catch (err) {
+      } catch (err: any) {
         if (cancelled) return;
-        setError(String(err));
-        window.clearInterval(intervalHandle);
+        setError(err.message || String(err));
+        setStatus('error');
+        if (intervalHandle) clearInterval(intervalHandle);
       }
     };
 
     poll();
-    intervalHandle = window.setInterval(poll, intervalMs);
+    intervalHandle = setInterval(poll, intervalMs);
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalHandle);
+      if (intervalHandle) clearInterval(intervalHandle);
     };
   }, [enabled, intervalMs, jobId]);
 

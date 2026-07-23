@@ -1,83 +1,102 @@
-import re
-from typing import Optional
+"""
+transcription_service.py
+========================
+Whisper / WhisperX speech-to-text transcription and word alignment service.
+"""
 
-from backend.app.modules.meeting_mode.pipeline import run_meeting_mode as run_whisperx_meeting_mode
-from backend.services.whisper_service import get_transcriber
+from __future__ import annotations
+
+from typing import Optional, Dict, Any, Tuple
+import torch
+import whisperx
 from backend.app.core.config import settings
 
+# Cache loaded models in memory
+_MODEL_CACHE: Dict[str, Any] = {}
 
-def normalize_speaker_label(
-    raw_label: str | None,
-    speaker_lookup: dict | None = None,
-    fallback_index: Optional[int] = None,
-) -> str:
-    """
-    Convert diarization labels like SPEAKER_00, speaker-1, or UNKNOWN into stable
-    labels such as SPEAKER_01, SPEAKER_02, etc.
-    """
-    lookup = speaker_lookup if speaker_lookup is not None else {}
-    label_key = (raw_label or "UNKNOWN").strip()
-    normalized_key = re.sub(r"[^a-z0-9]+", "", label_key.lower())
 
-    if not label_key or normalized_key in {"unknown", "speakerunknown", "speaker00", "speaker0", "speaker", "none", "null"}:
-        speaker_identity = "speaker1" if not lookup else "unknown"
+def get_whisper_model(
+    model_name: str = "medium",
+    device: Optional[str] = None,
+    compute_type: str = "float16"
+) -> Tuple[Any, str]:
+    """
+    Loads and caches the WhisperX model with VAD configuration.
+    """
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cpu":
+        compute_type = "int8"
+
+    cache_key = f"{model_name}_{device}_{compute_type}"
+    if cache_key not in _MODEL_CACHE:
+        print(f"🚀 Loading WhisperX model [{model_name}] on [{device}]...")
+        
+        # VAD Options configured at model initialization time
+        vad_options = {"vad_onset": 0.500, "vad_offset": 0.363}
+        
+        model = whisperx.load_model(
+            model_name,
+            device=device,
+            compute_type=compute_type,
+            vad_options=vad_options
+        )
+        _MODEL_CACHE[cache_key] = model
+
+    return _MODEL_CACHE[cache_key], device
+
+
+def transcribe_audio(
+    audio_path: str,
+    model_name: Optional[str] = None,
+    language_mode: Optional[str] = "en",
+    batch_size: int = 16
+) -> dict:
+    """
+    Transcribes audio file using WhisperX.
+    Defaults to English ('en') to prevent inaccurate auto-detection on short clips.
+    """
+    selected_model_name = model_name or getattr(settings, "WHISPER_MODEL", "medium") or "medium"
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    compute_type = "float16" if device == "cuda" else "int8"
+
+    model, device = get_whisper_model(model_name=selected_model_name, device=device, compute_type=compute_type)
+
+    audio = whisperx.load_audio(audio_path)
+
+    # Force English if language_mode is set to automatic/auto or empty
+    if not language_mode or language_mode.lower() in ["automatic", "auto", "none", ""]:
+        lang_code = "en"
     else:
-        speaker_identity = normalized_key
+        lang_code = language_mode
 
-        if re.search(r"speaker", label_key, re.IGNORECASE):
-            match = re.search(r"(\d+)", label_key)
-            if match:
-                speaker_num = int(match.group(1))
-                speaker_identity = f"speaker{speaker_num if speaker_num > 0 else 1}"
-            else:
-                speaker_identity = "speaker1"
-
-    if speaker_identity not in lookup:
-        next_index = fallback_index if fallback_index is not None else len(lookup) + 1
-        lookup[speaker_identity] = f"SPEAKER_{next_index:02d}"
-
-    return lookup[speaker_identity]
+    result = model.transcribe(audio, batch_size=batch_size, language=lang_code)
+    return result
 
 
-def run_quick_capture(audio_path: str, language_mode: str = "automatic") -> dict:
+def align_whisper_output(
+    segments: list,
+    audio_path: str,
+    language_code: str = "en"
+) -> list:
     """
-    Processes short audio clips (under 10 mins) quickly.
-    Skips speaker diarization to save computation time.
+    Aligns whisper transcript segments to get exact word-level timestamps.
     """
-    print(f"⚡ Running Quick Capture pipeline for: {audio_path}")
-    transcriber = get_transcriber()
+    if not segments:
+        return []
 
-    # Configure language if explicitly forced
-    lang = None if language_mode == "automatic" else language_mode
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Transcribe the audio file with VAD enabled for cleaner speech boundaries
-    segments, info = transcriber.transcribe(
-        audio_path,
-        language=lang,
-    )
-
-    full_text = []
-    formatted_segments = []
-    speaker_lookup = {}
-
-    for seg in segments:
-        full_text.append(seg.text)
-        formatted_segments.append({
-            "start": round(seg.start, 2),
-            "end": round(seg.end, 2),
-            "language": info.language,
-            "speaker": normalize_speaker_label("SPEAKER_01", speaker_lookup),
-            "text": seg.text.strip()
-        })
-
-    return {
-        "full_text": " ".join(full_text),
-        "segments": formatted_segments
-    }
+    try:
+        model_a, metadata = whisperx.load_align_model(language_code=language_code, device=device)
+        audio = whisperx.load_audio(audio_path)
+        aligned_result = whisperx.align(segments, model_a, metadata, audio, device, return_char_alignments=False)
+        return aligned_result.get("segments", segments)
+    except Exception as exc:
+        print(f"⚠️ Alignment skipped/failed for language [{language_code}]: {exc}")
+        return segments
 
 
-def run_meeting_mode(audio_path: str, language_mode: str = "automatic") -> dict:
-    # Legacy compatibility wrapper: background worker should call meeting pipeline with a real job_id.
-    # Here we create a temporary job id for synchronous usage.
-    temp_job_id = "sync_meeting"
-    return run_whisperx_meeting_mode(temp_job_id, audio_path, language_mode)
+# Aliases for backward compatibility
+transcribe = transcribe_audio

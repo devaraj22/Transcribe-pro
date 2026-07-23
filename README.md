@@ -97,3 +97,8 @@ Note: If you do not wish to enable Pyannote, the application will fall back to w
    - Verify: The service should be accessible at `http://localhost:11434`
 
 The frontend expects the backend at `http://localhost:8000/api/v1`.
+
+#VITE_API_KEY
+#python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# cat /teamspace/studios/this_studio/Transcribe-pro/backend/.env
